@@ -33,12 +33,7 @@ public:
         float yaw; ///< 向上（逆时针）为正 (unit: deg)
     };
 
-    struct AxisLimit
-    {
-        float max_spd;  ///< 最大速度 (unit: m/s)
-        float max_acc;  ///< 最大加速度 (unit: m/s^2)
-        float max_jerk; ///< 最大加加速度 (unit: m/s^3)
-    };
+    using AxisLimit = velocity_profile::SCurveProfile::Config;
 
     enum class CtrlMode
     {
@@ -111,6 +106,14 @@ public:
 
     void setWorldFromCurrent();
 
+    virtual bool enable()  = 0;
+    virtual void disable() = 0;
+
+    [[nodiscard]] virtual bool enabled() const
+    {
+        return false;
+    }
+
 protected:
     explicit IChassis(const Config& cfg);
 
@@ -176,7 +179,7 @@ private:
             Posture  p_ref_curr_{};
             Velocity v_ref_curr_{};
         } trajectory;
-    } posture_{};
+    } posture_;
 
     struct
     {

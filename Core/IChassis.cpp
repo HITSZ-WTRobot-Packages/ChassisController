@@ -4,21 +4,23 @@
  * @date    2026-01-31
  */
 #include "IChassis.hpp"
-#include "cmsis_compiler.h"
 #include <cmath>
 
+extern "C"
+{
+#include "cmsis_compiler.h"
 static uint32_t isr_lock()
 {
     const uint32_t primask = __get_PRIMASK();
     __disable_irq();
     return primask;
 }
-
 static void isr_unlock(uint32_t primask)
 {
     __DSB();
     __ISB();
     __set_PRIMASK(primask);
+}
 }
 
 namespace chassis
@@ -83,13 +85,15 @@ IChassis::Posture IChassis::BodyPosture2WorldPosture(const Posture& posture_in_b
 
 void IChassis::feedbackUpdate()
 {
+    if (!enabled())
+        return;
     update_posture();
     update_velocity_feedback();
 }
 
 void IChassis::profileUpdate(const float dt)
 {
-    if (ctrl_mode_ != CtrlMode::Posture)
+    if (!enabled() || ctrl_mode_ != CtrlMode::Posture)
         return;
 
     // 推进曲线
@@ -111,6 +115,9 @@ void IChassis::profileUpdate(const float dt)
 
 void IChassis::errorUpdate()
 {
+    if (!enabled() || ctrl_mode_ != CtrlMode::Posture)
+        return;
+
     // 使用 pd 控制器跟随当前目标
     posture_.trajectory.pd.vx.calc(posture_.trajectory.p_ref_curr_.x,
                                    posture_.in_world.x,
@@ -129,6 +136,9 @@ void IChassis::errorUpdate()
 
 void IChassis::controllerUpdate()
 {
+    if (!enabled())
+        return;
+
     if (ctrl_mode_ == CtrlMode::Velocity)
         update_velocity_control();
     velocityControllerUpdate();
@@ -152,21 +162,9 @@ bool IChassis::setTargetPostureInWorld(const Posture& absolute_target)
     // 初始化 S 型曲线
     // 衔接当前位置，速度，如果之前是位置控制还会衔接加速度
     const velocity_profile::SCurveProfile //
-            curve_x({ limit_x_.max_spd, limit_x_.max_acc, limit_x_.max_jerk },
-                    x,
-                    absolute_target.x,
-                    vx,
-                    ax),
-            curve_y({ limit_y_.max_spd, limit_y_.max_acc, limit_y_.max_jerk },
-                    y,
-                    absolute_target.y,
-                    vy,
-                    ay),
-            curve_yaw({ limit_yaw_.max_spd, limit_yaw_.max_acc, limit_yaw_.max_jerk },
-                      yaw,
-                      absolute_target.yaw,
-                      wz,
-                      ayaw);
+            curve_x(limit_x_, x, absolute_target.x, vx, ax),
+            curve_y(limit_y_, y, absolute_target.y, vy, ay),
+            curve_yaw(limit_yaw_, yaw, absolute_target.yaw, wz, ayaw);
 
     if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         return false;
@@ -268,14 +266,18 @@ void IChassis::setWorldFromCurrent()
 }
 
 IChassis::IChassis(const Config& cfg) :
-    feedback_(cfg.feedback_source), limit_x_(cfg.limit.x), limit_y_(cfg.limit.y),
-    limit_yaw_(cfg.limit.yaw)
+    lock_(osMutexNew(nullptr)),                                                    //
+    limit_x_{ cfg.limit.x }, limit_y_{ cfg.limit.y }, limit_yaw_{ cfg.limit.yaw }, //
+    posture_{
+        .trajectory = { .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
+                                   MITPD(cfg.posture_error_pd_cfg.vy),
+                                   MITPD(cfg.posture_error_pd_cfg.wz) },
+                        .curve = { velocity_profile::SCurveProfile(cfg.limit.x, 0, 0, 0, 0),
+                                   velocity_profile::SCurveProfile(cfg.limit.y, 0, 0, 0, 0),
+                                   velocity_profile::SCurveProfile(cfg.limit.yaw, 0, 0, 0, 0) } }
+    },
+    feedback_(cfg.feedback_source) //
 {
-    posture_.trajectory.pd.vx.setConfig(cfg.posture_error_pd_cfg.vx);
-    posture_.trajectory.pd.vy.setConfig(cfg.posture_error_pd_cfg.vy);
-    posture_.trajectory.pd.wz.setConfig(cfg.posture_error_pd_cfg.wz);
-
-    lock_ = osMutexNew(nullptr);
 }
 
 void IChassis::update_posture()
