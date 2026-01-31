@@ -12,18 +12,21 @@ static constexpr size_t idx(Mecanum4::WheelType w)
     return static_cast<size_t>(w);
 }
 
-Mecanum4::Mecanum4(const Config& cfg) :
-    IChassis(cfg), type_(cfg.chassis_type), wheel_radius_(cfg.wheel_radius * 1e-3f)
+Mecanum4::Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg) :
+    IChassis(base_cfg), type_(driver_cfg.chassis_type),
+    wheel_radius_(driver_cfg.wheel_radius * 1e-3f)
 {
     if (type_ == ChassisType::OType)
-        k_omega_ = cfg.wheel_distance_x * 1e-3f * 0.5f + cfg.wheel_distance_y * 1e-3f * 0.5f;
+        k_omega_ = driver_cfg.wheel_distance_x * 1e-3f * 0.5f +
+                   driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
     else if (type_ == ChassisType::XType)
-        k_omega_ = cfg.wheel_distance_x * 1e-3f * 0.5f - cfg.wheel_distance_y * 1e-3f * 0.5f;
+        k_omega_ = driver_cfg.wheel_distance_x * 1e-3f * 0.5f -
+                   driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
 
-    wheel_[idx(WheelType::FrontRight)] = cfg.wheel_front_right;
-    wheel_[idx(WheelType::FrontLeft)]  = cfg.wheel_front_left;
-    wheel_[idx(WheelType::RearLeft)]   = cfg.wheel_rear_left;
-    wheel_[idx(WheelType::RearRight)]  = cfg.wheel_rear_right;
+    wheel_[idx(WheelType::FrontRight)] = driver_cfg.wheel_front_right;
+    wheel_[idx(WheelType::FrontLeft)]  = driver_cfg.wheel_front_left;
+    wheel_[idx(WheelType::RearLeft)]   = driver_cfg.wheel_rear_left;
+    wheel_[idx(WheelType::RearRight)]  = driver_cfg.wheel_rear_right;
 }
 bool Mecanum4::enable()
 {

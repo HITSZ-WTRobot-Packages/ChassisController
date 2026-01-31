@@ -39,7 +39,7 @@ public:
         OType,      ///< O 型布局
     };
 
-    struct Config : IChassis::Config
+    struct Config
     {
         float       wheel_radius;     ///< 轮子半径 (unit: mm)
         float       wheel_distance_x; ///< 左右轮距 (unit: mm)
@@ -52,7 +52,7 @@ public:
         controllers::MotorVelController* wheel_rear_right;  ///< 右后方
     };
 
-    explicit Mecanum4(const Config& cfg);
+    Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg);
     bool enable() override;
     void disable() override;
     bool enabled() const override
@@ -76,7 +76,7 @@ private:
     float       wheel_radius_; ///< 轮子半径 (unit: m)
     float       k_omega_;      ///< O 型：半宽 + 半高；X 型：半宽 - 半高 (unit: m)
 
-    controllers::MotorVelController* wheel_[static_cast<size_t>(WheelType::Max)];
+    controllers::MotorVelController* wheel_[static_cast<size_t>(WheelType::Max)]{};
 };
 
 } // namespace chassis
