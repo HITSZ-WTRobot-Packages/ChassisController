@@ -1,0 +1,4 @@
+name = "Mecanum4"
+pkgname = "Chassis::Mecanum4"
+version = "0.1.0"
+dependencies = ["Chassis::Core", "FreeRTOS"]
