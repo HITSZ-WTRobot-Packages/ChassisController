@@ -1,0 +1,4 @@
+name = "Core"
+pkgname = "Chassis::Core"
+version = "0.1.0"
+dependencies = ["FreeRTOS", "libs::MIT_PD", "MotorDrivers::Controller", "VelocityProfile::SCurve"]
