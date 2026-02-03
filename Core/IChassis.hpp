@@ -37,6 +37,7 @@ public:
 
     enum class CtrlMode
     {
+        Stopped,
         Velocity,
         Posture,
     };
@@ -110,8 +111,20 @@ public:
 
     void setWorldFromCurrent();
 
-    virtual bool enable()  = 0;
-    virtual void disable() = 0;
+    void stop();
+
+    bool enable()
+    {
+        stop();
+        if (!postEnable())
+            return false;
+        return true;
+    }
+
+    void disable()
+    {
+        postDisable();
+    }
 
     [[nodiscard]] virtual bool enabled() const
     {
@@ -122,6 +135,9 @@ protected:
     explicit IChassis(const Config& cfg);
 
     virtual void applyVelocity(const Velocity& velocity) = 0;
+
+    virtual bool postEnable()  = 0;
+    virtual void postDisable() = 0;
 
     virtual void velocityControllerUpdate() = 0;
 
@@ -135,7 +151,7 @@ protected:
 private:
     osMutexId_t lock_;
 
-    CtrlMode ctrl_mode_{ CtrlMode::Velocity }; ///< 当前控制模式
+    CtrlMode ctrl_mode_{ CtrlMode::Stopped }; ///< 当前控制模式
 
     AxisLimit limit_x_;
     AxisLimit limit_y_;

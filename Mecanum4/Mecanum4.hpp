@@ -53,8 +53,8 @@ public:
     };
 
     Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg);
-    bool enable() override;
-    void disable() override;
+    bool postEnable() override;
+    void postDisable() override;
     bool enabled() const override
     {
         return enabled_;

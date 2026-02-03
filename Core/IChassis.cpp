@@ -115,7 +115,7 @@ void IChassis::profileUpdate(const float dt)
 
 void IChassis::errorUpdate()
 {
-    if (!enabled() || ctrl_mode_ != CtrlMode::Posture)
+    if (!enabled() || !(ctrl_mode_ == CtrlMode::Posture || ctrl_mode_ == CtrlMode::Stopped))
         return;
 
     // 使用 pd 控制器跟随当前目标
@@ -271,6 +271,20 @@ void IChassis::setWorldFromCurrent()
 
     isr_unlock(saved);
 
+    osMutexRelease(lock_);
+}
+
+void IChassis::stop()
+{
+    osMutexAcquire(lock_, osWaitForever);
+    const uint32_t saved = isr_lock();
+
+    ctrl_mode_ = CtrlMode::Stopped;
+
+    posture_.trajectory.p_ref_curr_ = posture_.in_world;
+    posture_.trajectory.v_ref_curr_ = { 0, 0, 0 };
+
+    isr_unlock(saved);
     osMutexRelease(lock_);
 }
 

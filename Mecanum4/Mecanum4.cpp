@@ -28,7 +28,7 @@ Mecanum4::Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg) :
     wheel_[idx(WheelType::RearLeft)]   = driver_cfg.wheel_rear_left;
     wheel_[idx(WheelType::RearRight)]  = driver_cfg.wheel_rear_right;
 }
-bool Mecanum4::enable()
+bool Mecanum4::postEnable()
 {
     bool enabled = true;
 
@@ -49,7 +49,7 @@ bool Mecanum4::enable()
     enabled_ = enabled;
     return enabled;
 }
-void Mecanum4::disable()
+void Mecanum4::postDisable()
 {
     for (const auto& w : wheel_)
         w->disable();
