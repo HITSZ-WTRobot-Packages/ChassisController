@@ -197,6 +197,15 @@ bool IChassis::setTargetPostureInBody(const Posture& relative_target)
 
     return setTargetPostureInWorld(absolute_target);
 }
+bool IChassis::isTrajectoryFinished() const
+{
+    return posture_.trajectory.now >= posture_.trajectory.total_time;
+}
+void IChassis::waitTrajectoryFinish() const
+{
+    while (!isTrajectoryFinished())
+        osDelay(1);
+}
 
 void IChassis::setVelocityInWorld(const Velocity& world_velocity, const bool target_in_world)
 {

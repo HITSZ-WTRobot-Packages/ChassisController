@@ -101,6 +101,10 @@ public:
 
     bool setTargetPostureInWorld(const Posture& absolute_target);
     bool setTargetPostureInBody(const Posture& relative_target);
+
+    [[nodiscard]] bool isTrajectoryFinished() const;
+    void               waitTrajectoryFinish() const;
+
     void setVelocityInWorld(const Velocity& world_velocity, bool target_in_world);
     void setVelBodyFrame(const Velocity& body_velocity, bool target_in_world);
 
