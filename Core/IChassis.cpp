@@ -162,9 +162,9 @@ bool IChassis::setTargetPostureInWorld(const Posture& absolute_target)
     // 初始化 S 型曲线
     // 衔接当前位置，速度，如果之前是位置控制还会衔接加速度
     const velocity_profile::SCurveProfile //
-            curve_x(limit_x_, x, absolute_target.x, vx, ax),
-            curve_y(limit_y_, y, absolute_target.y, vy, ay),
-            curve_yaw(limit_yaw_, yaw, absolute_target.yaw, wz, ayaw);
+            curve_x(limit_x_, x, vx, ax,  absolute_target.x),
+            curve_y(limit_y_, y, vy, ay,  absolute_target.y),
+            curve_yaw(limit_yaw_, yaw, wz, ayaw, absolute_target.yaw);
 
     if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         return false;
