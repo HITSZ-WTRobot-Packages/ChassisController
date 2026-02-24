@@ -22,7 +22,7 @@
 namespace chassis
 {
 
-class Mecanum4 final : public IChassis
+class Mecanum4 : public IChassis
 {
 public:
     enum class WheelType : size_t
@@ -53,6 +53,7 @@ public:
     };
 
     Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg);
+
     bool postEnable() override;
     void postDisable() override;
     bool enabled() const override
