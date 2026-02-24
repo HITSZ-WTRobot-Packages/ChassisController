@@ -1,0 +1,4 @@
+name = "Controller"
+pkgname = "Chassis::Controller"
+version = "0.1.0"
+dependencies = ["Chassis::Core"]
