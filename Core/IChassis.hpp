@@ -33,15 +33,6 @@ public:
         float yaw; ///< 向上（逆时针）为正 (unit: deg)
     };
 
-    using AxisLimit = velocity_profile::SCurveProfile::Config;
-
-    enum class CtrlMode
-    {
-        Stopped,
-        Velocity,
-        Posture,
-    };
-
     /**
      * 车体运动反馈，用于闭环控制
      *
@@ -70,19 +61,7 @@ public:
 
     struct Config
     {
-        struct
-        {
-            MITPD::Config vx; ///< x 速度 PD 控制器
-            MITPD::Config vy; ///< y 速度 PD 控制器
-            MITPD::Config wz; ///< 角速度 PD 控制器
-        } posture_error_pd_cfg;
-
         Feedback feedback_source;
-
-        struct
-        {
-            AxisLimit x, y, yaw;
-        } limit{};
     };
 
     [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const;
@@ -91,44 +70,33 @@ public:
     [[nodiscard]] Posture  BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
     void feedbackUpdate();
-    void profileUpdate(float dt);
-    void errorUpdate();
-    void controllerUpdate();
 
     [[nodiscard]] bool isOpsEnabled() const
     {
         return feedback_.x != nullptr && feedback_.y != nullptr && feedback_.yaw != nullptr;
     }
 
-    bool setTargetPostureInWorld(const Posture& absolute_target);
-    bool setTargetPostureInBody(const Posture& relative_target);
-
-    [[nodiscard]] bool isTrajectoryFinished() const;
-    void               waitTrajectoryFinish() const;
-
-    void setVelocityInWorld(const Velocity& world_velocity, bool target_in_world);
-    void setVelBodyFrame(const Velocity& body_velocity, bool target_in_world);
-
-    void setWorldFromCurrent();
-
-    void stop();
-
-    bool enable()
+    [[nodiscard]] bool enable()
     {
-        stop();
-        if (!postEnable())
-            return false;
-        return true;
+        return postEnable();
     }
 
     void disable()
     {
         postDisable();
     }
-
     [[nodiscard]] virtual bool enabled() const
     {
         return false;
+    }
+
+    [[nodiscard]] const auto& velocity() const
+    {
+        return velocity_;
+    }
+    [[nodiscard]] const auto& posture() const
+    {
+        return posture_;
     }
 
 protected:
@@ -136,7 +104,10 @@ protected:
 
     virtual void applyVelocity(const Velocity& velocity) = 0;
 
-    virtual bool postEnable()  = 0;
+    [[nodiscard]] virtual bool postEnable()
+    {
+        return false;
+    }
     virtual void postDisable() = 0;
 
     virtual void velocityControllerUpdate() = 0;
@@ -148,26 +119,13 @@ protected:
     virtual float forwardGetVy()  = 0;
     virtual float forwardGetWz()  = 0;
 
+    void applySetWorldFromCurrent();
+
 private:
-    osMutexId_t lock_;
-
-    CtrlMode ctrl_mode_{ CtrlMode::Stopped }; ///< 当前控制模式
-
-    AxisLimit limit_x_;
-    AxisLimit limit_y_;
-    AxisLimit limit_yaw_;
-
     struct
     {
-        volatile bool target_in_world; ///< 速度是否相对于世界坐标系不变
-        Velocity      in_world;        ///< 世界坐标系下速度
-        Velocity      in_body;         ///< 车体坐标系下速度
-
-        struct
-        {
-            Velocity in_world;
-            Velocity in_body;
-        } feedback; ///< 计算的车体速度反馈
+        Velocity in_world;
+        Velocity in_body;
     } velocity_{};
 
     struct
@@ -175,35 +133,12 @@ private:
         /**
          * feedback_yaw - world_yaw = body_yaw
          */
-        Posture in_world{}; ///< 车身位置（世界坐标系与车身坐标系的变换关系）
-
-        struct
-        {
-            float now{};        ///< 当前执行时间
-            float total_time{}; ///< 总执行时间
-
-            struct
-            {
-                MITPD vx; ///< x 速度 PD 控制器
-                MITPD vy; ///< y 速度 PD 控制器
-                MITPD wz; ///< 角速度 PD 控制器
-            } pd;
-
-            struct
-            {
-                velocity_profile::SCurveProfile x;
-                velocity_profile::SCurveProfile y;
-                velocity_profile::SCurveProfile yaw;
-            } curve;
-
-            Posture  p_ref_curr_{};
-            Velocity v_ref_curr_{};
-        } trajectory;
+        Posture in_world{}; ///< 车身位置（世界坐标系与车身坐标系的变换关系）、
     } posture_;
 
     struct
     {
-        volatile Posture posture; ///< 世界坐标系位置（相对于反馈）
+        Posture posture; ///< 世界坐标系位置（相对于反馈）
     } world_{};
 
     Feedback feedback_;
@@ -217,9 +152,7 @@ private:
 
 private:
     void update_posture();
-    void update_velocity_control();
     void update_velocity_feedback();
-    void apply_position_velocity();
 };
 
 } // namespace chassis
