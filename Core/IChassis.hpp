@@ -9,8 +9,6 @@
 #include "s_curve.hpp"
 #include "cmsis_os2.h"
 
-#define DEG2RAD(__DEG__) ((__DEG__) * (float) 3.14159265358979323846f / 180.0f)
-
 namespace chassis
 {
 
@@ -80,19 +78,10 @@ public:
 
     virtual void disable() = 0;
 
-    [[nodiscard]] virtual bool enabled() const
-    {
-        return false;
-    }
+    [[nodiscard]] virtual bool enabled() const { return false; }
 
-    [[nodiscard]] const auto& velocity() const
-    {
-        return velocity_;
-    }
-    [[nodiscard]] const auto& posture() const
-    {
-        return posture_;
-    }
+    [[nodiscard]] const auto& velocity() const { return velocity_; }
+    [[nodiscard]] const auto& posture() const { return posture_; }
 
 protected:
     explicit IChassis(const Config& cfg);

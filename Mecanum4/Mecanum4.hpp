@@ -9,16 +9,6 @@
 #include <cstddef>
 #include "motor_vel_controller.hpp"
 
-/**
- * rad/s to round/min
- * @param __RPS__ rad/s
- */
-#define RPS2RPM(__RPS__) ((__RPS__) * 60.0f / (2 * 3.14159265358979323846f))
-
-#define DEG2RAD(__DEG__) ((__DEG__) * (float) 3.14159265358979323846f / 180.0f)
-
-#define RPM2DPS(__RPM__) ((__RPM__) / 60.0f * 360.0f)
-
 namespace chassis
 {
 
@@ -57,10 +47,7 @@ public:
     bool enable() override;
     void disable() override;
 
-    [[nodiscard]] bool enabled() const override
-    {
-        return enabled_;
-    }
+    [[nodiscard]] bool enabled() const override { return enabled_; }
 
 protected:
     void  applyVelocity(const Velocity& velocity) override;

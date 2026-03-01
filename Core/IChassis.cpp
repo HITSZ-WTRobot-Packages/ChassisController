@@ -7,6 +7,8 @@
 #include <cassert>
 #include <cmath>
 
+#define DEG2RAD(__DEG__) ((__DEG__) * (float)3.14159265358979323846f / 180.0f)
+
 namespace chassis
 {
 IChassis::Velocity IChassis::WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const
