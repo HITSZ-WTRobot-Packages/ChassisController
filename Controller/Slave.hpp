@@ -54,7 +54,7 @@ public:
     bool enable()
     {
         stop();
-        return this->postEnable();
+        return Chassis::enable();
     }
 
 private:
