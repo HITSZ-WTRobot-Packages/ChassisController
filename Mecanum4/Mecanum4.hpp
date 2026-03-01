@@ -54,9 +54,10 @@ public:
 
     Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg);
 
-    bool postEnable() override;
-    void postDisable() override;
-    bool enabled() const override
+    bool enable() override;
+    void disable() override;
+
+    [[nodiscard]] bool enabled() const override
     {
         return enabled_;
     }
@@ -70,6 +71,11 @@ protected:
     float forwardGetVx() override;
     float forwardGetVy() override;
     float forwardGetWz() override;
+
+    [[nodiscard]] WheeledKinematicsType kinematicsType() const override
+    {
+        return WheeledKinematicsType::RollingConstrained;
+    }
 
 private:
     bool        enabled_{ false };
