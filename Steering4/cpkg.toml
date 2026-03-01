@@ -1,0 +1,4 @@
+name = "Steering4"
+pkgname = "Chassis::Steering4"
+version = "0.1.0"
+dependencies = ["Chassis::Core", "FreeRTOS", "bsp::GPIO_Driver"]
