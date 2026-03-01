@@ -69,22 +69,17 @@ public:
     [[nodiscard]] Posture  WorldPosture2BodyPosture(const Posture& posture_in_world) const;
     [[nodiscard]] Posture  BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
-    void feedbackUpdate();
+    void feedbackUpdate(float dt);
 
     [[nodiscard]] bool isOpsEnabled() const
     {
         return feedback_.x != nullptr && feedback_.y != nullptr && feedback_.yaw != nullptr;
     }
 
-    [[nodiscard]] bool enable()
-    {
-        return postEnable();
-    }
+    [[nodiscard]] virtual bool enable() = 0;
 
-    void disable()
-    {
-        postDisable();
-    }
+    virtual void disable() = 0;
+
     [[nodiscard]] virtual bool enabled() const
     {
         return false;
@@ -102,13 +97,23 @@ public:
 protected:
     explicit IChassis(const Config& cfg);
 
-    virtual void applyVelocity(const Velocity& velocity) = 0;
-
-    [[nodiscard]] virtual bool postEnable()
+    enum class WheeledKinematicsType
     {
-        return false;
-    }
-    virtual void postDisable() = 0;
+        /**
+         * nonholonomic rolling-without-slipping constraint
+         * 直接用轮子位移就能计算出总位移的底盘类型，如 Mecanum4, Omni4
+         */
+        RollingConstrained,
+        /**
+         * pose via time integration of velocity
+         * 只能由速度量积分得到总位移的底盘类型，如 Steering4
+         */
+        VelocityIntegrated
+    };
+
+    [[nodiscard]] virtual WheeledKinematicsType kinematicsType() const = 0;
+
+    virtual void applyVelocity(const Velocity& velocity) = 0;
 
     virtual void velocityControllerUpdate() = 0;
 
@@ -145,14 +150,13 @@ private:
 
     struct
     {
+        float vx;
+        float vy;
+        float wz;
         float sx;
         float sy;
         float yaw;
     } last_feedback_{};
-
-private:
-    void update_posture();
-    void update_velocity_feedback();
 };
 
 } // namespace chassis
