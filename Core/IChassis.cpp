@@ -4,6 +4,7 @@
  * @date    2026-01-31
  */
 #include "IChassis.hpp"
+#include <cassert>
 #include <cmath>
 
 namespace chassis
@@ -66,12 +67,82 @@ IChassis::Posture IChassis::BodyPosture2WorldPosture(const Posture& posture_in_b
     return posture_in_world;
 }
 
-void IChassis::feedbackUpdate()
+/**
+ * 更新底盘反馈
+ * @param dt 更新间隔 (unit: s)
+ */
+void IChassis::feedbackUpdate(const float dt)
 {
-    if (!enabled())
+    if (!enabled() || dt <= 0)
         return;
-    update_posture();
-    update_velocity_feedback();
+
+    if (isOpsEnabled())
+    {
+        assert(feedback_.x && feedback_.y && feedback_.yaw);
+        // 直接读取 OPS
+        posture_.in_world.x   = *feedback_.x;
+        posture_.in_world.y   = *feedback_.y;
+        posture_.in_world.yaw = *feedback_.yaw;
+        return;
+    }
+    // 通过里程计或者运动学解算计算位置
+    // 通过速度积分还是直接读取底盘
+    const bool use_vel = kinematicsType() == WheeledKinematicsType::VelocityIntegrated;
+    // 速度反馈
+    const float vx = feedback_.vx != nullptr ? *feedback_.vx : forwardGetVx();
+    const float vy = feedback_.vy != nullptr ? *feedback_.vy : forwardGetVy();
+    const float wz = feedback_.wz != nullptr ? *feedback_.wz : forwardGetWz();
+    // 计算里程增量
+    float dx, dy;
+    if (feedback_.sx || !use_vel)
+    {
+        // use measured or estimated position
+        const float sx    = feedback_.sx ? *feedback_.sx : forwardGetX();
+        dx                = sx - last_feedback_.sx;
+        last_feedback_.sx = sx;
+    }
+    else
+    {
+        // fallback: integrate velocity
+        dx = 0.5f * (vx + last_feedback_.vx) * dt;
+        last_feedback_.sx += dx;
+    }
+    if (feedback_.sy || !use_vel)
+    {
+        // use measured or estimated position
+        const float sy    = feedback_.sy ? *feedback_.sy : forwardGetY();
+        dy                = sy - last_feedback_.sy;
+        last_feedback_.sy = sy;
+    }
+    else
+    {
+        // fallback: integrate velocity
+        dy = 0.5f * (vy + last_feedback_.vy) * dt;
+        last_feedback_.sy += dy;
+    }
+    // 计算平均 yaw，作为积分方向
+    const float& yaw_prev = last_feedback_.yaw;
+
+    const float yaw = feedback_.yaw ? *feedback_.yaw                              // 直接读取陀螺仪
+                      : use_vel ? yaw_prev + 0.5f * (wz + last_feedback_.wz) * dt // 用平均速度积分
+                                : forwardGetYaw(); // 直接读取底盘解算
+
+    const float ave_yaw              = (yaw + yaw_prev) * 0.5f;
+    const float ave_yaw_in_world_rad = DEG2RAD(ave_yaw - world_.posture.yaw);
+    last_feedback_.yaw               = yaw;
+
+    // 积分
+    posture_.in_world.x += dx * cosf(ave_yaw_in_world_rad) - dy * sinf(ave_yaw_in_world_rad);
+    posture_.in_world.y += dx * sinf(ave_yaw_in_world_rad) + dy * cosf(ave_yaw_in_world_rad);
+    posture_.in_world.yaw = yaw - world_.posture.yaw;
+    // 更新速度反馈
+    last_feedback_.vx = vx, last_feedback_.vy = vy, last_feedback_.wz = wz;
+
+    // 更新底盘速度
+    velocity_.in_body.vx = vx;
+    velocity_.in_body.vy = vy;
+    velocity_.in_body.wz = wz;
+    velocity_.in_world   = BodyVelocity2WorldVelocity(velocity_.in_body);
 }
 
 void IChassis::applySetWorldFromCurrent()
@@ -89,42 +160,4 @@ void IChassis::applySetWorldFromCurrent()
 }
 
 IChassis::IChassis(const Config& cfg) : feedback_(cfg.feedback_source) {}
-
-void IChassis::update_posture()
-{
-    if (isOpsEnabled())
-    {
-        // 直接读取 OPS
-        posture_.in_world.x   = *feedback_.x;
-        posture_.in_world.y   = *feedback_.y;
-        posture_.in_world.yaw = *feedback_.yaw;
-    }
-    else
-    {
-        // 通过里程计或者运动学解算计算位置
-        const float sx  = feedback_.sx != nullptr ? *feedback_.sx : forwardGetX();
-        const float sy  = feedback_.sy != nullptr ? *feedback_.sy : forwardGetY();
-        const float yaw = feedback_.yaw != nullptr ? *feedback_.yaw : forwardGetYaw();
-
-        const float dx                   = sx - last_feedback_.sx;
-        const float dy                   = sy - last_feedback_.sy;
-        const float ave_yaw              = (yaw + last_feedback_.yaw) * 0.5f;
-        const float ave_yaw_in_world_rad = DEG2RAD(ave_yaw - world_.posture.yaw);
-
-        last_feedback_.sx  = sx;
-        last_feedback_.sy  = sy;
-        last_feedback_.yaw = yaw;
-
-        posture_.in_world.x += dx * cosf(ave_yaw_in_world_rad) - dy * sinf(ave_yaw_in_world_rad);
-        posture_.in_world.y += dx * sinf(ave_yaw_in_world_rad) + dy * cosf(ave_yaw_in_world_rad);
-        posture_.in_world.yaw = yaw - world_.posture.yaw;
-    }
-}
-void IChassis::update_velocity_feedback()
-{
-    velocity_.in_body.vx = feedback_.vx != nullptr ? *feedback_.vx : forwardGetVx();
-    velocity_.in_body.vy = feedback_.vy != nullptr ? *feedback_.vy : forwardGetVy();
-    velocity_.in_body.wz = feedback_.wz != nullptr ? *feedback_.wz : forwardGetWz();
-    velocity_.in_world   = BodyVelocity2WorldVelocity(velocity_.in_body);
-}
 } // namespace chassis
