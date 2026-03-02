@@ -7,7 +7,9 @@
 #pragma once
 #include "IChassis.hpp"
 #include "isr_lock.h"
-
+#include "s_curve.hpp"
+#include "mit_pd.hpp"
+#include "cmsis_os2.h"
 #include <algorithm>
 #include <cmath>
 #include <type_traits>

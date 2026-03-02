@@ -11,7 +11,6 @@ target_include_directories(ChassisCore
 target_link_libraries(ChassisCore PUBLIC FreeRTOS)
 target_link_libraries(ChassisCore PUBLIC libs::MIT_PD)
 target_link_libraries(ChassisCore PUBLIC MotorDrivers::Controller)
-target_link_libraries(ChassisCore PUBLIC VelocityProfile::SCurve)
 
 # alias for external use
 add_library(Chassis::Core ALIAS ChassisCore)

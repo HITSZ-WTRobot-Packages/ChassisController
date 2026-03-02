@@ -4,11 +4,6 @@
  * @date    2026-01-31
  */
 #pragma once
-
-#include "mit_pd.hpp"
-#include "s_curve.hpp"
-#include "cmsis_os2.h"
-
 namespace chassis
 {
 
