@@ -12,6 +12,7 @@
 #include <cmath>
 
 #define RAD2DEG(__RAD__) ((__RAD__) / 3.14159265358979323846f * 180)
+#define DEG2RAD(__DEG__) ((__DEG__) * 3.14159265358979323846f / 180)
 
 namespace chassis
 {
@@ -95,7 +96,7 @@ void Steering4::velocityControllerUpdate()
     }
 
     for (auto& w : wheel_)
-        wheel_->update();
+        w.update();
 }
 
 Steering4::WheelPosition Steering4::getWheelPosition(WheelType wheel) const

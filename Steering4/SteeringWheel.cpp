@@ -7,9 +7,11 @@
 
 namespace chassis::steering
 {
+constexpr SteeringWheel::CalibrationConfig kDefaultCalibration{};
+
 SteeringWheel::SteeringWheel(const Config&            cfg,
-                             const bool               enable_calib,
-                             const CalibrationConfig& calib_cfg) :
+                             const bool               enable_calib = false,
+                             const CalibrationConfig& calib_cfg    = kDefaultCalibration) :
     cfg_(cfg), enable_calib_(enable_calib), calib_cfg_(calib_cfg)
 {
     assert(cfg_.drive_motor != nullptr);

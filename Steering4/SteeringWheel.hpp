@@ -41,9 +41,8 @@ public:
         float steer_offset; // 舵向偏置，如果有光电门，则是光电门所在角度，如果是云台电机，则是零点所在角度
     };
 
-    explicit SteeringWheel(const Config&            cfg,
-                           bool                     enable_calib = false,
-                           const CalibrationConfig& calib_cfg    = {});
+    explicit SteeringWheel(const Config& cfg, bool enable_calib, const CalibrationConfig&);
+
     void startCalibration();
     void setTargetVelocity(const Velocity& vel);
 
@@ -97,7 +96,7 @@ private:
 
     Velocity target_vel_{}; // 目标速度
 
-    extern "C" static void PhotogateCallback(const GPIO_t* gpio, uint32_t counter, void* data)
+    static void PhotogateCallback(const GPIO_t* gpio, uint32_t counter, void* data)
     {
         static_cast<SteeringWheel*>(data)->photogateTrigger();
     }
