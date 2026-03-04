@@ -71,7 +71,7 @@ public:
     void startCalibration()
     {
         for (auto& w : wheel_)
-            wheel_->startCalibration();
+            w.startCalibration();
     }
 
 protected:
@@ -115,7 +115,7 @@ private:
         float vx, vy, wz;
     } velocity_{}; // 反馈速度
 
-    steering::SteeringWheel wheel_[];
+    steering::SteeringWheel wheel_[static_cast<size_t>(WheelType::Max)];
 
     struct WheelPosition
     {

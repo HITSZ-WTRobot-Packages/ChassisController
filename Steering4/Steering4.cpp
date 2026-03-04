@@ -95,7 +95,7 @@ void Steering4::velocityControllerUpdate()
     }
 
     for (auto& w : wheel_)
-        wheel_->update();
+        w.update();
 }
 
 Steering4::WheelPosition Steering4::getWheelPosition(WheelType wheel) const
