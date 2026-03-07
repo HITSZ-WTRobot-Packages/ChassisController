@@ -146,7 +146,7 @@ template <typename Chassis, size_t BufferCapacity>
 void Slave<Chassis, BufferCapacity>::apply_position_velocity()
 {
     // 叠加前馈和 pd 输出
-    const auto& [vx, vy, wz] = this->WorldVelocity2BodyVelocity(v_ref_);
+    const auto& [vx, vy, wz] = this->loc().WorldVelocity2BodyVelocity(v_ref_);
 
     const Velocity velocity_in_body = {
         vx + pd_vx_.getOutput(),
