@@ -102,8 +102,8 @@ void Slave<Chassis, BufferCapacity>::errorUpdate()
     if (!this->enabled())
         return;
 
-    const auto& [x, y, yaw]  = this->WorldPosture2BodyPosture(p_ref_);
-    const auto& [vx, vy, wz] = this->WorldVelocity2BodyVelocity(v_ref_);
+    const auto& [x, y, yaw]  = this->loc().WorldPosture2BodyPosture(p_ref_);
+    const auto& [vx, vy, wz] = this->loc().WorldVelocity2BodyVelocity(v_ref_);
     pd_vx_.calc(x, 0, vx, this->velocity().in_body.vx);
     pd_vy_.calc(y, 0, vy, this->velocity().in_body.vy);
     pd_wz_.calc(yaw, 0, wz, this->velocity().in_body.wz);
@@ -146,7 +146,7 @@ template <typename Chassis, size_t BufferCapacity>
 void Slave<Chassis, BufferCapacity>::apply_position_velocity()
 {
     // 叠加前馈和 pd 输出
-    const auto& [vx, vy, wz] = this->WorldVelocity2BodyVelocity(v_ref_);
+    const auto& [vx, vy, wz] = this->loc().WorldVelocity2BodyVelocity(v_ref_);
 
     const Velocity velocity_in_body = {
         vx + pd_vx_.getOutput(),

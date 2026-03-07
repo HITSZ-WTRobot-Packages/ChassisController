@@ -1,11 +1,11 @@
 add_library(ChassisSteering4 STATIC
-    "./SteeringWheel.cpp"
-    "./Steering4.cpp"
+        "SteeringWheel.cpp"
+        "Steering4.cpp"
 )
 
 target_include_directories(ChassisSteering4
-    PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+        PUBLIC
+        .
 )
 
 # link dependencies if any

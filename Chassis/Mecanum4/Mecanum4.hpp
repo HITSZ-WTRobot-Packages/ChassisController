@@ -42,27 +42,21 @@ public:
         controllers::MotorVelController* wheel_rear_right;  ///< 右后方
     };
 
-    Mecanum4(const Config& driver_cfg, const IChassis::Config& base_cfg);
+    Mecanum4(chassis_loc::ILoc& loc, const Config& driver_cfg);
 
     bool enable() override;
     void disable() override;
 
-    [[nodiscard]] bool enabled() const override { return enabled_; }
+    [[nodiscard]] bool enabled() const override
+    {
+        return enabled_;
+    }
 
 protected:
-    void  applyVelocity(const Velocity& velocity) override;
-    void  velocityControllerUpdate() override;
-    float forwardGetX() override;
-    float forwardGetY() override;
-    float forwardGetYaw() override;
-    float forwardGetVx() override;
-    float forwardGetVy() override;
-    float forwardGetWz() override;
+    void applyVelocity(const Velocity& velocity) override;
+    void velocityControllerUpdate() override;
 
-    [[nodiscard]] WheeledKinematicsType kinematicsType() const override
-    {
-        return WheeledKinematicsType::RollingConstrained;
-    }
+    Velocity forwardGetVelocity() override;
 
 private:
     bool        enabled_{ false };

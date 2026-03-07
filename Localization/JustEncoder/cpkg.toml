@@ -1,0 +1,4 @@
+name = "JustEncoder"
+pkgname = "ChassisLocalization::JustEncoder"
+version = "0.1.0"
+dependencies = ["Chassis::Core"]

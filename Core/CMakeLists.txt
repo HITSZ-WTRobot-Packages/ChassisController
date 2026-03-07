@@ -1,10 +1,11 @@
 add_library(ChassisCore STATIC
-    "./IChassis.cpp"
+        "./IChassis.cpp"
+        "ILoc.cpp"
 )
 
 target_include_directories(ChassisCore
-    PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # link dependencies if any
