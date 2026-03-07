@@ -1,0 +1,4 @@
+name = "ControllerMaster"
+pkgname = "Chassis::ControllerMaster"
+version = "0.1.0"
+dependencies = ["Chassis::Core", "VelocityProfile::SCurve"]

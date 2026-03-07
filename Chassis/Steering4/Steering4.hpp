@@ -44,7 +44,7 @@ public:
         Wheel wheel_rear_right;  ///< 右后方
     };
 
-    Steering4(Config cfg, const IChassis::Config& base_cfg);
+    Steering4(chassis_loc::ILoc& loc, const Config& cfg);
     [[nodiscard]] bool enable() override
     {
         if (enabled_)
@@ -75,29 +75,12 @@ public:
     }
 
 protected:
-    void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
-
-    float forwardGetVx() override
+    void     applyVelocity(const Velocity& velocity) override;
+    void     velocityControllerUpdate() override;
+    Velocity forwardGetVelocity() override
     {
-        return velocity_.vx;
+        return velocity_;
     }
-    float forwardGetVy() override
-    {
-        return velocity_.vy;
-    }
-    float forwardGetWz() override
-    {
-        return velocity_.wz;
-    }
-
-    [[nodiscard]] WheeledKinematicsType kinematicsType() const override
-    {
-        return WheeledKinematicsType::VelocityIntegrated;
-    }
-    float forwardGetX() override   = 0;
-    float forwardGetY() override   = 0;
-    float forwardGetYaw() override = 0;
 
 private:
     bool enabled_{ false };
@@ -110,10 +93,7 @@ private:
     float inv_l2_;
     float spd2rpm_;
 
-    struct
-    {
-        float vx, vy, wz;
-    } velocity_{}; // 反馈速度
+    Velocity velocity_{}; // 反馈速度
 
     steering::SteeringWheel wheel_[static_cast<size_t>(WheelType::Max)];
 
@@ -122,7 +102,7 @@ private:
         float x, y;
     };
 
-    WheelPosition getWheelPosition(WheelType wheel) const;
+    [[nodiscard]] WheelPosition getWheelPosition(WheelType wheel) const;
 };
 
 } // namespace chassis
