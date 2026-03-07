@@ -1,10 +1,10 @@
 add_library(ChassisMecanum4 STATIC
-    "./Mecanum4.cpp"
+        "Mecanum4.cpp"
 )
 
 target_include_directories(ChassisMecanum4
-    PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+        PUBLIC
+        .
 )
 
 # link dependencies if any

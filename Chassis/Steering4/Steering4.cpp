@@ -16,9 +16,9 @@
 
 namespace chassis
 {
-Steering4::Steering4(Config cfg, const IChassis::Config& base_cfg) :
-    IChassis(base_cfg), enable_calib_(cfg.enable_calibration),
-    wheel_radius_(1e-3f * cfg.radius), // mm to m
+Steering4::Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
+    IChassis(loc), enable_calib_(cfg.enable_calibration), //
+    wheel_radius_(1e-3f * cfg.radius),                    // mm to m
     half_distance_x(0.5f * cfg.distance_x), half_distance_y(0.5f * cfg.distance_y),
     inv_l2_(4.0f / (cfg.distance_x * cfg.distance_x + cfg.distance_y * cfg.distance_y)),
     spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f), wheel_{
