@@ -30,8 +30,8 @@ public:
         bool enable_calibration = false; // 是否启用校准功能
 
         float radius;     // 驱动轮半径 (unit: mm)
-        float distance_x; // 前后轮距 (unit: mm)
-        float distance_y; // 左右轮距 (unit: mm)
+        float distance_x; // 前后轮距 (unit: mm), x 轴指向车体前方
+        float distance_y; // 左右轮距 (unit: mm), y 轴指向车体左侧
 
         struct Wheel
         {
