@@ -4,15 +4,17 @@
  * @date    2026-03-07
  */
 #include "JustEncoder.hpp"
+#include "IChassis.hpp"
 #include <cmath>
 
 #define DEG2RAD(__DEG__) ((__DEG__) * (float) 3.14159265358979323846f / 180.0f)
 
 namespace chassis_loc
 {
-void JustEncoder::updateEncoder(const Velocity& velocity, const float dt)
+void JustEncoder::update(const float dt)
 {
     // 速度反馈
+    const auto velocity     = chassis_->forwardGetVelocity();
     const auto [vx, vy, wz] = velocity;
     // 速度积分
     const float dx = 0.5f * (vx + velocity_.in_body.vx) * dt;

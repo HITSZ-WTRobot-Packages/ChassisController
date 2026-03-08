@@ -74,13 +74,14 @@ public:
             w.startCalibration();
     }
 
-protected:
-    void     applyVelocity(const Velocity& velocity) override;
-    void     velocityControllerUpdate() override;
     Velocity forwardGetVelocity() override
     {
         return velocity_;
     }
+
+protected:
+    void applyVelocity(const Velocity& velocity) override;
+    void velocityControllerUpdate() override;
 
 private:
     bool enabled_{ false };

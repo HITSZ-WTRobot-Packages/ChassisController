@@ -52,11 +52,11 @@ public:
         return enabled_;
     }
 
+    Velocity forwardGetVelocity() override;
+
 protected:
     void applyVelocity(const Velocity& velocity) override;
     void velocityControllerUpdate() override;
-
-    Velocity forwardGetVelocity() override;
 
 private:
     bool        enabled_{ false };

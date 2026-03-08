@@ -21,14 +21,10 @@ public:
     {
         return false;
     }
+
     [[nodiscard]] const chassis_loc::ILoc& loc() const
     {
         return loc_;
-    }
-
-    void encoderUpdate(const float dt)
-    {
-        loc_.updateEncoder(forwardGetVelocity(), dt);
     }
 
     [[nodiscard]] const auto& posture() const
@@ -40,14 +36,34 @@ public:
         return loc().velocity();
     }
 
+    [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const
+    {
+        return loc_.WorldVelocity2BodyVelocity(velocity_in_world);
+    }
+    [[nodiscard]] Velocity BodyVelocity2WorldVelocity(const Velocity& velocity_in_body) const
+    {
+        return loc_.BodyVelocity2WorldVelocity(velocity_in_body);
+    }
+    [[nodiscard]] Posture WorldPosture2BodyPosture(const Posture& posture_in_world) const
+    {
+        return loc_.WorldPosture2BodyPosture(posture_in_world);
+    }
+    [[nodiscard]] Posture BodyPosture2WorldPosture(const Posture& posture_in_body) const
+    {
+        return loc_.BodyPosture2WorldPosture(posture_in_body);
+    }
+
+    virtual Velocity forwardGetVelocity() = 0;
+
 protected:
     friend chassis_loc::ILoc;
-    explicit IChassis(chassis_loc::ILoc& loc) : loc_(loc) {}
+    explicit IChassis(chassis_loc::ILoc& loc) : loc_(loc)
+    {
+        loc_.bind_chassis(this);
+    }
 
     virtual void applyVelocity(const Velocity& velocity) = 0;
     virtual void velocityControllerUpdate()              = 0;
-
-    virtual Velocity forwardGetVelocity() = 0;
 
 private:
     chassis_loc::ILoc& loc_;
