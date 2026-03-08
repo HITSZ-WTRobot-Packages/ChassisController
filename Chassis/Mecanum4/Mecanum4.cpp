@@ -25,12 +25,13 @@ static constexpr size_t idx(Mecanum4::WheelType w)
 Mecanum4::Mecanum4(chassis_loc::ILoc& loc, const Config& driver_cfg) :
     IChassis(loc), type_(driver_cfg.chassis_type), wheel_radius_(driver_cfg.wheel_radius * 1e-3f)
 {
+    const float half_x = driver_cfg.wheel_distance_x * 1e-3f * 0.5f;
+    const float half_y = driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
+
     if (type_ == ChassisType::OType)
-        k_omega_ = driver_cfg.wheel_distance_x * 1e-3f * 0.5f +
-                   driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
+        k_omega_ = half_x + half_y;
     else if (type_ == ChassisType::XType)
-        k_omega_ = driver_cfg.wheel_distance_x * 1e-3f * 0.5f -
-                   driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
+        k_omega_ = half_y - half_x;
 
     wheel_[idx(WheelType::FrontRight)] = driver_cfg.wheel_front_right;
     wheel_[idx(WheelType::FrontLeft)]  = driver_cfg.wheel_front_left;

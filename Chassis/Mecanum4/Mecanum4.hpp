@@ -32,8 +32,8 @@ public:
     struct Config
     {
         float       wheel_radius;     ///< 轮子半径 (unit: mm)
-        float       wheel_distance_x; ///< 左右轮距 (unit: mm)
-        float       wheel_distance_y; ///< 前后轮距 (unit: mm)
+        float       wheel_distance_x; ///< 前后轮距 (unit: mm), x 轴指向车体前方
+        float       wheel_distance_y; ///< 左右轮距 (unit: mm), y 轴指向车体左侧
         ChassisType chassis_type;     ///< 底盘构型
 
         controllers::MotorVelController* wheel_front_right; ///< 右前方
@@ -62,7 +62,7 @@ private:
     bool        enabled_{ false };
     ChassisType type_;         ///< 底盘构型
     float       wheel_radius_; ///< 轮子半径 (unit: m)
-    float       k_omega_;      ///< O 型：半宽 + 半高；X 型：半宽 - 半高 (unit: m)
+    float       k_omega_;      ///< O 型：半前后 + 半左右；X 型：半左右 - 半前后 (unit: m)
 
     controllers::MotorVelController* wheel_[static_cast<size_t>(WheelType::Max)]{};
 };
