@@ -1,0 +1,4 @@
+name = "Omni4"
+pkgname = "Chassis::Omni4"
+version = "0.1.0"
+dependencies = ["Chassis::Core", "FreeRTOS"]
