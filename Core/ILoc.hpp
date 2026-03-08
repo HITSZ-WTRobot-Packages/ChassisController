@@ -5,6 +5,11 @@
  */
 #pragma once
 
+namespace chassis
+{
+class IChassis;
+}
+
 namespace chassis_loc
 {
 
@@ -43,13 +48,14 @@ public:
     [[nodiscard]] Posture  WorldPosture2BodyPosture(const Posture& posture_in_world) const;
     [[nodiscard]] Posture  BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
-    virtual void updateEncoder(const Velocity& velocity, const float dt)
+    void bind_chassis(chassis::IChassis* chassis)
     {
-        (void) velocity;
-        (void) dt;
+        chassis_ = chassis;
     }
 
 protected:
+    chassis::IChassis* chassis_{ nullptr };
+
     struct
     {
         Velocity in_body{};

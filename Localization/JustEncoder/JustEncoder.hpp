@@ -14,7 +14,7 @@ class JustEncoder final : public ILoc
 {
 public:
     explicit JustEncoder() : ILoc() {}
-    void updateEncoder(const Velocity& velocity, float dt) override;
+    void update(float dt);
 };
 
 } // namespace chassis_loc

@@ -1,5 +1,4 @@
 add_library(ChassisCore STATIC
-        "./IChassis.cpp"
         "ILoc.cpp"
 )
 
