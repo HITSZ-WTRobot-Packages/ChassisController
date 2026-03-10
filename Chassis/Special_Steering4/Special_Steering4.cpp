@@ -41,7 +41,7 @@ void Special_Steering4::applyVelocity(const Velocity& velocity)
         return;
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
     {
-        const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
+        const auto [xi, yi] = getWheelPosition(static_cast<WheelType>(i));
         // ILoc velocity interface uses deg/s; convert to rad/s for kinematic computation.
         const float wz_rad    = DEG2RAD(velocity.wz);
         const float vxi       = velocity.vx + wz_rad * yi;
@@ -87,11 +87,11 @@ void Special_Steering4::velocityControllerUpdate()
             vy += driver_speed * sin_theta;
             if (0 == i)
             {
-                wz += vy / distance_x_;
+                wz += driver_speed * sin_theta / distance_x_;
             }
             if (2 == i)
             {
-                wz -= vy / distance_x_;
+                wz -= driver_speed * sin_theta / distance_x_;
             }
         }
         velocity_.vx = 0.25f * vx;
