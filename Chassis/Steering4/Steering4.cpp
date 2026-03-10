@@ -19,8 +19,8 @@ namespace chassis
 Steering4::Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
     IChassis(loc), enable_calib_(cfg.enable_calibration), //
     wheel_radius_(1e-3f * cfg.radius),                    // mm to m
-    half_distance_x(0.5f * cfg.distance_x), half_distance_y(0.5f * cfg.distance_y),
-    inv_l2_(4.0f / (cfg.distance_x * cfg.distance_x + cfg.distance_y * cfg.distance_y)),
+    half_distance_x(0.5e-3f * cfg.distance_x), half_distance_y(0.5e-3f * cfg.distance_y),
+    inv_l2_(1.0e6f / (cfg.distance_x * cfg.distance_x + cfg.distance_y * cfg.distance_y)),
     spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f), wheel_{
         steering::SteeringWheel(cfg.wheel_front_right.cfg,
                                 cfg.enable_calibration,
@@ -45,9 +45,11 @@ void Steering4::applyVelocity(const Velocity& velocity)
         return;
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
     {
-        const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
-        const float vxi       = velocity.vx - velocity.wz * yi;
-        const float vyi       = velocity.vy + velocity.wz * xi;
+        const auto [xi, yi] = getWheelPosition(static_cast<WheelType>(i));
+        // ILoc velocity interface uses deg/s; convert to rad/s for kinematic computation.
+        const float wz_rad    = DEG2RAD(velocity.wz);
+        const float vxi       = velocity.vx - wz_rad * yi;
+        const float vyi       = velocity.vy + wz_rad * xi;
         const float speed_rpm = spd2rpm_ * std::hypot(vxi, vyi);
         if (fabsf(speed_rpm) < 1e-6f)
         {
@@ -88,11 +90,12 @@ void Steering4::velocityControllerUpdate()
             const float cos_theta       = cosf(steer_angle_rad);
             vx += driver_speed * cos_theta;
             vy += driver_speed * sin_theta;
-            wz += -yi * cos_theta + xi * sin_theta;
+            wz += driver_speed * (-yi * cos_theta + xi * sin_theta);
         }
         velocity_.vx = 0.25f * vx;
         velocity_.vy = 0.25f * vy;
-        velocity_.wz = inv_l2_ * wz;
+        // Internal solve gives rad/s, while outward velocity convention is deg/s.
+        velocity_.wz = RAD2DEG(inv_l2_ * wz);
     }
 
     for (auto& w : wheel_)

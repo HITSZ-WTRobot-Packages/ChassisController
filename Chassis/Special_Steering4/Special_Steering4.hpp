@@ -91,23 +91,23 @@ public:
         return velocity_;
     }
 
-    // Runtime parameter: y direction shift of chassis reference point (unit: mm).
+    // Runtime parameter input is mm; internally stored in meters.
     void setYShift(float y_shift)
     {
-        y_shift_ = y_shift;
+        y_shift_ = 1e-3f * y_shift;
     }
 
     [[nodiscard]] float yShift() const
     {
-        return y_shift_;
+        return 1e3f * y_shift_;
     }
 
     [[nodiscard]] KinematicParam kinematicParam() const
     {
         return {
-            distance_x_,
-            distance_y_,
-            y_shift_,
+            1e3f * distance_x_,
+            1e3f * distance_y_,
+            1e3f * y_shift_,
         };
     }
 

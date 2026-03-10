@@ -16,8 +16,8 @@ namespace chassis
 
 Special_Steering4::Special_Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
     IChassis(loc), enable_calib_(cfg.enable_calibration), wheel_radius_(1e-3f * cfg.radius),
-    distance_x_(cfg.distance_x), distance_y_(cfg.distance_y),
-    half_distance_x_(0.5f * cfg.distance_x), half_distance_y_(0.5f * cfg.distance_y),
+    distance_x_(1e-3f * cfg.distance_x), distance_y_(1e-3f * cfg.distance_y),
+    half_distance_x_(0.5e-3f * cfg.distance_x), half_distance_y_(0.5e-3f * cfg.distance_y),
     spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f), wheel_{
         steering::SteeringWheel(cfg.wheel_front_right.cfg,
                                 cfg.enable_calibration,
@@ -42,8 +42,10 @@ void Special_Steering4::applyVelocity(const Velocity& velocity)
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
     {
         const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
-        const float vxi       = velocity.vx + velocity.wz * yi;
-        const float vyi       = velocity.vy + velocity.wz * xi;
+        // ILoc velocity interface uses deg/s; convert to rad/s for kinematic computation.
+        const float wz_rad    = DEG2RAD(velocity.wz);
+        const float vxi       = velocity.vx + wz_rad * yi;
+        const float vyi       = velocity.vy + wz_rad * xi;
         const float speed_rpm = spd2rpm_ * std::hypot(vxi, vyi);
         if (fabsf(speed_rpm) < 1e-6f)
         {
@@ -94,7 +96,7 @@ void Special_Steering4::velocityControllerUpdate()
         }
         velocity_.vx = 0.25f * vx;
         velocity_.vy = 0.25f * vy;
-        velocity_.wz = wz;
+        velocity_.wz = RAD2DEG(wz);
     }
 
     for (auto& w : wheel_)
