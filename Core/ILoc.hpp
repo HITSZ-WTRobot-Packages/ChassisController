@@ -33,29 +33,21 @@ public:
     explicit ILoc() = default;
     virtual ~ILoc() = default;
 
-    [[nodiscard]] const auto& velocity() const
-    {
-        return velocity_;
-    }
+    [[nodiscard]] const auto& velocity() const { return velocity_; }
 
-    [[nodiscard]] const auto& posture() const
-    {
-        return posture_;
-    }
+    [[nodiscard]] const auto& posture() const { return posture_; }
 
     [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const;
     [[nodiscard]] Velocity BodyVelocity2WorldVelocity(const Velocity& velocity_in_body) const;
     [[nodiscard]] Posture  WorldPosture2BodyPosture(const Posture& posture_in_world) const;
     [[nodiscard]] Posture  BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
-    void bind_chassis(chassis::IChassis* chassis)
-    {
-        chassis_ = chassis;
-    }
+    void bind_chassis(chassis::IChassis* chassis) { chassis_ = chassis; }
 
 protected:
     chassis::IChassis* chassis_{ nullptr };
 
+    // TODO: 应当通过虚函数来要求子类必须维护以下数据
     struct
     {
         Velocity in_body{};
