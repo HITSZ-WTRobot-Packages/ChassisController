@@ -5,6 +5,8 @@
  */
 #include "LocEKF.hpp"
 
+#include "IChassis.hpp"
+
 namespace chassis_loc
 {
 LocEKF::PositionEKF::PositionEKF(const Config& cfg) :
@@ -94,6 +96,20 @@ void LocEKF::updateEKF()
                                   .P     = pos_ekf_.covariance(),
                                   .input = { .vel = vel, .yaw_gyro = yaw } });
     }
+    // TODO: 处理这一步的线程安全问题
+    updateLoc();
+}
+void LocEKF::updateLoc()
+{
+    const auto s = pos_ekf_.state();
+
+    posture_ = { { s[0], s[1], s[2] + s[3] } };
+
+    const auto [vx, vy, wz] = chassis_->forwardGetVelocity();
+
+    velocity_.in_body = { vx, vy, gyro_.getWz() };
+
+    velocity_.in_world = BodyVelocity2WorldVelocity(velocity_.in_body);
 }
 
 void LocEKF::update(const float yaw)

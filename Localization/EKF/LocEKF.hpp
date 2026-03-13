@@ -152,14 +152,15 @@ private:
     [[nodiscard]] constexpr float dt() const { return static_cast<float>(dticks_) * 0.001f; }
 
     void updateInput(float yaw);
-
     void updateEKF();
+    void updateLoc();
+
+    // TODO: 在上下位机之间同步时间
 
 public:
     using Config = PositionEKF::Config;
 
     void update(float yaw);
-
     void updateLidar(const Posture& pos, uint32_t ticks);
 
     LocEKF(const Config& cfg, sensors::gyro::HWT101CT& gyro, uint32_t delta_ticks = 1);
