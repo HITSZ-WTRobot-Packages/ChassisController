@@ -72,10 +72,10 @@ void LocEKF::PositionEKF::lidarUpdate(const Posture& pos)
     update(y, H, R_lidar_);
 }
 
-void LocEKF::updateInput(const float yaw)
+void LocEKF::updateInput()
 {
     const auto vel = chassis_->forwardGetVelocity();
-    // const auto yaw = gyro.getYaw();
+    const auto yaw = gyro_.getYaw();
     // 将输入丢进缓冲区
     input_buffer_.push_back({ HAL_GetTick(), vel, yaw });
 }
@@ -112,9 +112,9 @@ void LocEKF::updateLoc()
     velocity_.in_world = BodyVelocity2WorldVelocity(velocity_.in_body);
 }
 
-void LocEKF::update(const float yaw)
+void LocEKF::update()
 {
-    updateInput(yaw);
+    updateInput();
     // 如果锁了，说明雷达更在更新，跳过本次更新，等雷达更新完调用更新 EKF
     if (!lock_.load(std::memory_order_acquire))
     {
