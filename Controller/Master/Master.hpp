@@ -5,26 +5,20 @@
  * @brief   Brief description of the file
  */
 #pragma once
-#include "IChassis.hpp"
+#include "IChassisController.hpp"
 #include "isr_lock.h"
 #include "s_curve.hpp"
 #include "mit_pd.hpp"
 #include "cmsis_os2.h"
-#include <algorithm>
 #include <cmath>
-#include <type_traits>
 
 namespace chassis::controller
 {
 
-template <typename Chassis> class Master : public Chassis
+class Master : public IChassisController
 {
-    static_assert(std::is_base_of_v<IChassis, Chassis>);
-
 public:
     using AxisLimit = velocity_profile::SCurveProfile::Config;
-    using Velocity  = IChassis::Velocity;
-    using Posture   = IChassis::Posture;
 
     struct Config
     {
@@ -48,8 +42,8 @@ public:
         Posture,
     };
 
-    Master(Chassis&& chassis, const Config& cfg) :
-        Chassis(std::move(chassis)), lock_(osMutexNew(nullptr)),                       //
+    Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
+        IChassisController(motion, loc), lock_(osMutexNew(nullptr)),                   //
         limit_x_{ cfg.limit.x }, limit_y_{ cfg.limit.y }, limit_yaw_{ cfg.limit.yaw }, //
         posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
                                         MITPD(cfg.posture_error_pd_cfg.vy),
@@ -67,8 +61,8 @@ public:
         osMutexAcquire(lock_, osWaitForever);
 
         // copy 当前位置和速度
-        const auto [x, y, yaw]  = this->posture().in_world;
-        const auto [vx, vy, wz] = this->velocity().in_world;
+        const auto [x, y, yaw]  = postureInWorld();
+        const auto [vx, vy, wz] = velocityInWorld();
 
         float ax = 0, ay = 0, ayaw = 0;
         if (ctrl_mode_ == CtrlMode::Posture)
@@ -130,7 +124,7 @@ public:
     void setVelocityInWorld(const Velocity& world_velocity, bool target_in_world)
     {
         osMutexAcquire(lock_, osWaitForever);
-        const auto [vx, vy, wz] = this->WorldVelocity2BodyVelocity(world_velocity);
+        const auto [vx, vy, wz] = loc_->WorldVelocity2BodyVelocity(world_velocity);
 
         const uint32_t saved = isr_lock(); // 写入过程加中断锁
 
@@ -152,7 +146,7 @@ public:
     void setVelocityInBody(const Velocity& body_velocity, bool target_in_world)
     {
         osMutexAcquire(lock_, osWaitForever);
-        const auto [vx, vy, wz] = this->BodyVelocity2WorldVelocity(body_velocity);
+        const auto [vx, vy, wz] = loc_->BodyVelocity2WorldVelocity(body_velocity);
 
         const uint32_t saved = isr_lock(); // 写入过程加中断锁
 
@@ -177,7 +171,7 @@ public:
 
         ctrl_mode_ = CtrlMode::Stopped;
 
-        posture_trajectory_.p_ref_curr_ = this->posture().in_world;
+        posture_trajectory_.p_ref_curr_ = postureInWorld();
         posture_trajectory_.v_ref_curr_ = { 0, 0, 0 };
 
         isr_unlock(saved);
@@ -214,17 +208,17 @@ public:
 
         // 使用 pd 控制器跟随当前目标
         posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x,
-                                       this->posture().in_world.x,
+                                       postureInWorld().x,
                                        posture_trajectory_.v_ref_curr_.vx,
-                                       this->velocity().in_world.vx);
+                                       velocityInWorld().vx);
         posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y,
-                                       this->posture().in_world.y,
+                                       postureInWorld().y,
                                        posture_trajectory_.v_ref_curr_.vy,
-                                       this->velocity().in_world.vy);
+                                       velocityInWorld().vy);
         posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw,
-                                       this->posture().in_world.yaw,
+                                       postureInWorld().yaw,
                                        posture_trajectory_.v_ref_curr_.wz,
-                                       this->velocity().in_world.wz);
+                                       velocityInWorld().wz);
         apply_position_velocity();
     }
 
@@ -241,19 +235,19 @@ public:
     bool enable()
     {
         stop();
-        return Chassis::enable();
+        return IChassisController::enable();
     }
 
-    void setWorldFromCurrent()
-    {
-        if (this->isOpsEnabled())
-            return;
-        osMutexAcquire(lock_, osWaitForever);
-        const auto saved = isr_lock();
-        this->applySetWorldFromCurrent();
-        isr_unlock(saved);
-        osMutexRelease(lock_);
-    }
+    // void setWorldFromCurrent()
+    // {
+    //     if (this->isOpsEnabled())
+    //         return;
+    //     osMutexAcquire(lock_, osWaitForever);
+    //     const auto saved = isr_lock();
+    //     this->applySetWorldFromCurrent();
+    //     isr_unlock(saved);
+    //     osMutexRelease(lock_);
+    // }
 
 private:
     osMutexId_t lock_;
@@ -317,7 +311,7 @@ private:
         {
             // 直接应用速度
         }
-        this->applyVelocity(velocity_ref_.in_body);
+        applyVelocity(velocity_ref_.in_body);
     }
 
     void apply_position_velocity()
@@ -330,10 +324,10 @@ private:
         };
 
         // 将世界坐标系速度转换为底盘坐标系速度
-        const Velocity body_velocity = this->loc().WorldVelocity2BodyVelocity(velocity_in_world);
+        const Velocity body_velocity = loc_->WorldVelocity2BodyVelocity(velocity_in_world);
 
         // 应用速度
-        this->applyVelocity(body_velocity);
+        applyVelocity(body_velocity);
     }
 };
 
