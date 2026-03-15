@@ -79,7 +79,10 @@ public:
                 curve_yaw(limit_yaw_, yaw, wz, ayaw, absolute_target.yaw);
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
+        {
+            osMutexRelease(lock_);
             return false;
+        }
 
         float total_time = std::fmaxf(curve_x.getTotalTime(),
                                       std::fmaxf(curve_y.getTotalTime(), curve_yaw.getTotalTime()));
