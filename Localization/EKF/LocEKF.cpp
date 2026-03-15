@@ -134,12 +134,13 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
     {
         // 直接更新
         pos_ekf_.lidarUpdate(pos);
+        lock_.store(false, std::memory_order_release);
         return;
     }
     const int state_tick = -static_cast<int>(
             std::ceilf(static_cast<float>(last_tick - ticks) / static_cast<float>(dticks_)));
     // 获取回溯状态
-    auto s = state_buffer_[state_tick];
+    auto& s = state_buffer_[state_tick];
     // 回溯到之前的状态
     pos_ekf_.reset(s.x, s.P);
     // 更新雷达
