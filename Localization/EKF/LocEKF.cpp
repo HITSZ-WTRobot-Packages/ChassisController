@@ -126,7 +126,7 @@ void LocEKF::update()
 void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
 {
     // 锁定更新状态, 此处假定 updateEKF 由中断调用，本身不会被打断
-    lock_.store(true, std::memory_order_acquire);
+    lock_.store(true, std::memory_order_release);
 
     const uint32_t last_tick = state_buffer_.empty() ? 0 : state_buffer_.at(-1).input.ticks;
 
@@ -155,7 +155,7 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
         x = pos_ekf_.state(), P = pos_ekf_.covariance();
     }
 
-    lock_.store(false, std::memory_order_acquire);
+    lock_.store(false, std::memory_order_release);
     // 手动更新堆积的输入
     if (!input_buffer_.empty())
         updateEKF();
