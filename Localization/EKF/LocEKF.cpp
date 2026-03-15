@@ -5,9 +5,9 @@
  */
 #include "LocEKF.hpp"
 
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 
-namespace chassis_loc
+namespace chassis::loc
 {
 LocEKF::PositionEKF::PositionEKF(const Config& cfg) :
     EKF(cfg.x_init.vec(), cfg.covQ.mat(), cfg.noiseQ.mat()), R_gyro_(cfg.noiseR.gyro.mat()),
@@ -74,7 +74,7 @@ void LocEKF::PositionEKF::lidarUpdate(const Posture& pos)
 
 void LocEKF::updateInput()
 {
-    const auto vel = chassis_->forwardGetVelocity();
+    const auto vel = forwardGetVelocity();
     const auto yaw = gyro_.getYaw();
     // 将输入丢进缓冲区
     input_buffer_.push_back({ HAL_GetTick(), vel, yaw });
@@ -105,7 +105,7 @@ void LocEKF::updateLoc()
 
     posture_ = { { s[0], s[1], s[2] + s[3] } };
 
-    const auto [vx, vy, wz] = chassis_->forwardGetVelocity();
+    const auto [vx, vy, wz] = forwardGetVelocity();
 
     velocity_.in_body = { vx, vy, gyro_.getWz() };
 
@@ -162,9 +162,12 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
         updateEKF();
 }
 
-LocEKF::LocEKF(const Config& cfg, sensors::gyro::HWT101CT& gyro, const uint32_t delta_ticks) :
-    gyro_(gyro), pos_ekf_(cfg), dticks_(delta_ticks)
+LocEKF::LocEKF(motion::IChassisMotion&  motion,
+               const Config&            cfg,
+               sensors::gyro::HWT101CT& gyro,
+               const uint32_t           delta_ticks) :
+    IChassisLoc(motion), gyro_(gyro), pos_ekf_(cfg), dticks_(delta_ticks)
 {
 }
 
-} // namespace chassis_loc
+} // namespace chassis::loc

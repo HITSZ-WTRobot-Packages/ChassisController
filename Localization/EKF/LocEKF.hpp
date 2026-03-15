@@ -9,7 +9,7 @@
 #pragma once
 #include "Deque.hpp"
 #include "HWT101CT.hpp"
-#include "ILoc.hpp"
+#include "IChassisLoc.hpp"
 #include "Vec.hpp"
 #include "EKF.hpp"
 #include "Mat.hpp"
@@ -19,7 +19,7 @@
 #    define DEG2RAD(__DEG__) ((__DEG__) * (float)3.14159265358979323846f / 180.0f)
 #endif
 
-namespace chassis_loc
+namespace chassis::loc
 {
 
 /**
@@ -31,7 +31,7 @@ namespace chassis_loc
  * - 支持 IMU(高频)、轮速计(中频)、Lidar/SLAM(低频)数据融合
  * - 自动同步 ESKF 状态到 ILoc 的 posture 和 velocity
  */
-class LocEKF : public ILoc
+class LocEKF : public IChassisLoc
 {
 public:
     sensors::gyro::HWT101CT& gyro_;
@@ -143,8 +143,8 @@ private:
         Input input;
     };
 
-    Deque<StatePoint, 1024> state_buffer_;
-    Deque<Input, 4>         input_buffer_;
+    Deque<StatePoint, 512> state_buffer_;
+    Deque<Input, 4>        input_buffer_;
 
     uint32_t dticks_{ 1 };
 
@@ -163,7 +163,26 @@ public:
     void update();
     void updateLidar(const Posture& pos, uint32_t ticks);
 
-    LocEKF(const Config& cfg, sensors::gyro::HWT101CT& gyro, uint32_t delta_ticks = 1);
+    LocEKF(motion::IChassisMotion&  motion,
+           const Config&            cfg,
+           sensors::gyro::HWT101CT& gyro,
+           uint32_t                 delta_ticks = 1);
+
+    [[nodiscard]] const Velocity& velocityInBody() const override { return velocity_.in_body; }
+    [[nodiscard]] const Velocity& velocityInWorld() const override { return velocity_.in_world; }
+    [[nodiscard]] const Posture&  postureInWorld() const override { return posture_.in_world; }
+
+private:
+    struct
+    {
+        Posture in_world;
+    } posture_{};
+
+    struct
+    {
+        Velocity in_world;
+        Velocity in_body;
+    } velocity_{};
 };
 
-} // namespace chassis_loc
+} // namespace chassis::loc
