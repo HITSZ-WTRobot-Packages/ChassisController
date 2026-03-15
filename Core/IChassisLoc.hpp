@@ -88,7 +88,8 @@ public:
 
 protected:
     motion::IChassisMotion* motion_{ nullptr };
-    [[nodiscard]] auto      forwardGetVelocity() const { return motion_->forwardGetVelocity(); }
+
+    [[nodiscard]] auto forwardGetVelocity() const { return motion_->forwardGetVelocity(); }
 };
 
 } // namespace chassis::loc

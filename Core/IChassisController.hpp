@@ -18,8 +18,8 @@ public:
     [[nodiscard]] const auto& velocityInWorld() const { return loc_->velocityInWorld(); }
     [[nodiscard]] const auto& postureInWorld() const { return loc_->postureInWorld(); }
 
-    [[nodiscard]] bool enable() const { return motion_->enable(); }
-    void               disable() const { motion_->disable(); }
+    [[nodiscard]] bool enable() { return motion_->enable(); }
+    void               disable() { motion_->disable(); }
     [[nodiscard]] bool enabled() const { return motion_->enabled(); }
 
 protected:
@@ -32,7 +32,7 @@ protected:
     loc::IChassisLoc*       loc_;
 
     // 保护接口转发
-    void applyVelocity(const Velocity& velocity) const { motion_->applyVelocity(velocity); }
-    void velocityControllerUpdate() const { motion_->velocityControllerUpdate(); }
+    void applyVelocity(const Velocity& velocity) { motion_->applyVelocity(velocity); }
+    void velocityControllerUpdate() { motion_->velocityControllerUpdate(); }
 };
 } // namespace chassis::controller
