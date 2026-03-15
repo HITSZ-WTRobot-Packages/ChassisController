@@ -14,11 +14,11 @@
 #define RAD2DEG(__RAD__) ((__RAD__) / 3.14159265358979323846f * 180)
 #define DEG2RAD(__DEG__) ((__DEG__) * 3.14159265358979323846f / 180)
 
-namespace chassis
+namespace chassis::motion
 {
-Steering4::Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
-    IChassis(loc), enable_calib_(cfg.enable_calibration), //
-    wheel_radius_(1e-3f * cfg.radius),                    // mm to m
+Steering4::Steering4(const Config& cfg) :
+    enable_calib_(cfg.enable_calibration), //
+    wheel_radius_(1e-3f * cfg.radius),     // mm to m
     half_distance_x(0.5e-3f * cfg.distance_x), half_distance_y(0.5e-3f * cfg.distance_y),
     inv_l2_(4.0f / ((1e-3f * cfg.distance_x) * (1e-3f * cfg.distance_x) +
                     (1e-3f * cfg.distance_y) * (1e-3f * cfg.distance_y))),
@@ -112,4 +112,4 @@ Steering4::WheelPosition Steering4::getWheelPosition(WheelType wheel) const
         ky * half_distance_y,
     };
 }
-} // namespace chassis
+} // namespace chassis::motion

@@ -6,15 +6,15 @@
 #ifndef OMNI4_HPP
 #define OMNI4_HPP
 
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 #include "motor_vel_controller.hpp"
 
 #include <cstddef>
 
-namespace chassis
+namespace chassis::motion
 {
 
-class Omni4 : public IChassis
+class Omni4 : public IChassisMotion
 {
 public:
     enum class WheelType : size_t
@@ -38,15 +38,12 @@ public:
         controllers::MotorVelController* wheel_rear_right;
     };
 
-    Omni4(chassis_loc::ILoc& loc, const Config& cfg);
+    explicit Omni4(const Config& cfg);
 
     bool enable() override;
     void disable() override;
 
-    [[nodiscard]] bool enabled() const override
-    {
-        return enabled_;
-    }
+    [[nodiscard]] bool enabled() const override { return enabled_; }
 
     Velocity forwardGetVelocity() override;
 
@@ -62,6 +59,6 @@ private:
     controllers::MotorVelController* wheel_[static_cast<size_t>(WheelType::Max)]{};
 };
 
-} // namespace chassis
+} // namespace chassis::motion
 
 #endif // OMNI4_HPP
