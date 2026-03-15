@@ -8,13 +8,13 @@
  *
  */
 #pragma once
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 #include "SteeringWheel.hpp"
 
-namespace chassis
+namespace chassis::motion
 {
 
-class Steering4 : public IChassis
+class Steering4 : public IChassisMotion
 {
 public:
     enum class WheelType : size_t
@@ -30,8 +30,8 @@ public:
         bool enable_calibration = false; // 是否启用校准功能
 
         float radius;     // 驱动轮半径 (unit: mm)
-        float distance_x; // 前后轮距 (unit: mm)
-        float distance_y; // 左右轮距 (unit: mm)
+        float distance_x; // 前后轮距 (unit: mm), x 轴指向车体前方
+        float distance_y; // 左右轮距 (unit: mm), y 轴指向车体左侧
 
         struct Wheel
         {
@@ -44,7 +44,7 @@ public:
         Wheel wheel_rear_right;  ///< 右后方
     };
 
-    Steering4(chassis_loc::ILoc& loc, const Config& cfg);
+    explicit Steering4(const Config& cfg);
     [[nodiscard]] bool enable() override
     {
         if (enabled_)
@@ -74,10 +74,7 @@ public:
             w.startCalibration();
     }
 
-    Velocity forwardGetVelocity() override
-    {
-        return velocity_;
-    }
+    Velocity forwardGetVelocity() override { return velocity_; }
 
 protected:
     void applyVelocity(const Velocity& velocity) override;
@@ -106,4 +103,4 @@ private:
     [[nodiscard]] WheelPosition getWheelPosition(WheelType wheel) const;
 };
 
-} // namespace chassis
+} // namespace chassis::motion

@@ -5,16 +5,33 @@
  */
 #pragma once
 
-#include "ILoc.hpp"
+#include "IChassisLoc.hpp"
 
-namespace chassis_loc
+namespace chassis::loc
 {
 
-class JustEncoder final : public ILoc
+class JustEncoder final : public IChassisLoc
 {
 public:
-    explicit JustEncoder() : ILoc() {}
+    using IChassisLoc::IChassisLoc;
+
     void update(float dt);
+
+    [[nodiscard]] const Velocity& velocityInBody() const override { return velocity_.in_body; }
+    [[nodiscard]] const Velocity& velocityInWorld() const override { return velocity_.in_world; }
+    [[nodiscard]] const Posture&  postureInWorld() const override { return posture_.in_world; }
+
+private:
+    struct
+    {
+        Posture in_world;
+    } posture_{};
+
+    struct
+    {
+        Velocity in_world;
+        Velocity in_body;
+    } velocity_{};
 };
 
-} // namespace chassis_loc
+} // namespace chassis::loc
