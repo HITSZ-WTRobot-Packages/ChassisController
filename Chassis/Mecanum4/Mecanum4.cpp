@@ -115,7 +115,7 @@ void Mecanum4::applyVelocity(const Velocity& velocity)
  *
  * @note 推荐控制调用频率 1kHz，调用频率将会影响轮子的 PID 参数
  */
-void Mecanum4::velocityControllerUpdate()
+void Mecanum4::update()
 {
     if (!enabled())
         return;

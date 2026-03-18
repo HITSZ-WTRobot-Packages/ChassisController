@@ -76,9 +76,12 @@ public:
 
     Velocity forwardGetVelocity() override { return velocity_; }
 
+    [[nodiscard]] bool isReady() const override { return !enable_calib_ || calibrated_; }
+
+    void update() override;
+
 protected:
     void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
 
 private:
     bool enabled_{ false };
