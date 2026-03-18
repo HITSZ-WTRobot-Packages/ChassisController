@@ -51,9 +51,12 @@ public:
 
     Velocity forwardGetVelocity() override;
 
+    void update() override;
+
+    [[nodiscard]] bool isReady() const override { return true; }
+
 protected:
     void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
 
 private:
     bool        enabled_{ false };

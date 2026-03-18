@@ -124,7 +124,7 @@ public:
             osDelay(1);
     }
 
-    void setVelocityInWorld(const Velocity& world_velocity, bool target_in_world)
+    void setVelocityInWorld(const Velocity& world_velocity, const bool target_in_world)
     {
         osMutexAcquire(lock_, osWaitForever);
         const auto [vx, vy, wz] = loc_->WorldVelocity2BodyVelocity(world_velocity);
@@ -146,7 +146,7 @@ public:
         osMutexRelease(lock_);
     }
 
-    void setVelocityInBody(const Velocity& body_velocity, bool target_in_world)
+    void setVelocityInBody(const Velocity& body_velocity, const bool target_in_world)
     {
         osMutexAcquire(lock_, osWaitForever);
         const auto [vx, vy, wz] = loc_->BodyVelocity2WorldVelocity(body_velocity);
@@ -167,7 +167,7 @@ public:
         osMutexRelease(lock_);
     }
 
-    void stop()
+    void stop() override
     {
         osMutexAcquire(lock_, osWaitForever);
         const uint32_t saved = isr_lock();
@@ -181,13 +181,21 @@ public:
         osMutexRelease(lock_);
     }
 
-    void profileUpdate(float dt)
+    /**
+     * 更新底盘轨迹规划曲线
+     *
+     * 仅在 CtrlMode::Posture 下有效
+     * @param dt 更新间隔
+     * @note 推荐 100Hz
+     */
+    void profileUpdate(const float dt)
     {
-        if (!this->enabled() || ctrl_mode_ != CtrlMode::Posture)
+        if (!enabled() || ctrl_mode_ != CtrlMode::Posture)
             return;
 
         // 推进曲线
-        const float now               = this->posture_trajectory_.now + dt;
+        const float now = this->posture_trajectory_.now + dt;
+
         this->posture_trajectory_.now = now;
 
         // 计算前馈速度
@@ -203,6 +211,10 @@ public:
         apply_position_velocity();
     }
 
+    /**
+     * 更新底盘轨迹 PD 控制器
+     * @note 推荐 200 ~ 500Hz
+     */
     void errorUpdate()
     {
         if (!this->enabled() ||
@@ -227,18 +239,11 @@ public:
 
     void controllerUpdate()
     {
-        if (!this->enabled())
+        if (!enabled())
             return;
 
         if (ctrl_mode_ == CtrlMode::Velocity)
             update_velocity_control();
-        this->velocityControllerUpdate();
-    }
-
-    bool enable()
-    {
-        stop();
-        return IChassisController::enable();
     }
 
     // void setWorldFromCurrent()
@@ -266,7 +271,7 @@ private:
         volatile bool target_in_world; ///< 速度是否相对于世界坐标系不变
         Velocity      in_world;        ///< 世界坐标系下速度
         Velocity      in_body;         ///< 车体坐标系下速度
-    } velocity_ref_;
+    } velocity_ref_{};
 
     struct
     {

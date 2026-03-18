@@ -79,7 +79,7 @@ void Omni4::applyVelocity(const Velocity& velocity)
     wheel_[idx(WheelType::RearRight)]->setRef(RPS2RPM(v_rr / wheel_radius_));
 }
 
-void Omni4::velocityControllerUpdate()
+void Omni4::update()
 {
     if (!enabled())
         return;

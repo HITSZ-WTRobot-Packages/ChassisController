@@ -24,12 +24,21 @@ public:
     virtual void               disable() = 0;
     [[nodiscard]] virtual bool enabled() const { return false; }
 
+    /**
+     * 是否就位
+     * 自检/变形过程中处于 not-ready 状态
+     */
+    [[nodiscard]] virtual bool isReady() const { return false; }
+
     virtual Velocity forwardGetVelocity() = 0;
+
+    virtual void update() = 0;
 
 protected:
     explicit IChassisMotion() {}
+
+    // 限制只能由控制器调用
     virtual void applyVelocity(const Velocity& velocity) = 0;
-    virtual void velocityControllerUpdate()              = 0;
 
     friend class controller::IChassisController;
 };

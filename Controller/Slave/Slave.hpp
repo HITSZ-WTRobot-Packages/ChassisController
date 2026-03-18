@@ -72,14 +72,7 @@ public:
         apply_position_velocity();
     }
 
-    void controllerUpdate() const
-    {
-        if (!enabled())
-            return;
-        velocityControllerUpdate();
-    }
-
-    void stop()
+    void stop() override
     {
         osMutexAcquire(lock_, osWaitForever);
         const uint32_t saved = isr_lock();
@@ -100,12 +93,6 @@ public:
      */
     bool pushTrajectoryPoint(const TrajectoryPoint& point) { return cmd_buffer_.push(point); }
 
-    bool enable()
-    {
-        stop();
-        return IChassisController::enable();
-    }
-
 private:
     osMutexId_t lock_;
     bool        stopped_{ true };
@@ -119,7 +106,7 @@ private:
 
     libs::RingBuffer<TrajectoryPoint, BufferCapacity> cmd_buffer_;
 
-    void apply_position_velocity() const
+    void apply_position_velocity()
     {
         // 叠加前馈和 pd 输出
         const auto& [vx, vy, wz] = loc_->WorldVelocity2BodyVelocity(v_ref_);
