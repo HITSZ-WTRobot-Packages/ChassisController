@@ -41,7 +41,7 @@ Steering4::Steering4(const Config& cfg) :
 
 void Steering4::applyVelocity(const Velocity& velocity)
 {
-    if (enable_calib_ && !calibrated_)
+    if (!isReady())
         // 需要校准但未校准，无法设置速度
         return;
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
@@ -66,7 +66,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
         }
     }
 }
-void Steering4::velocityControllerUpdate()
+void Steering4::update()
 {
     if (enable_calib_ && !calibrated_)
     {
