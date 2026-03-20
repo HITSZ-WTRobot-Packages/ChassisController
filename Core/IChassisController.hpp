@@ -16,15 +16,15 @@ public:
     // 公共接口转发
     [[nodiscard]] const auto& motion() const { return *motion_; }
     [[nodiscard]] const auto& loc() const { return *loc_; }
-    [[nodiscard]] const auto& velocityInBody() const { return loc_->velocityInBody(); }
-    [[nodiscard]] const auto& velocityInWorld() const { return loc_->velocityInWorld(); }
-    [[nodiscard]] const auto& postureInWorld() const { return loc_->postureInWorld(); }
+    [[nodiscard]] auto        velocityInBody() const { return loc_->velocityInBody(); }
+    [[nodiscard]] auto        velocityInWorld() const { return loc_->velocityInWorld(); }
+    [[nodiscard]] auto        postureInWorld() const { return loc_->postureInWorld(); }
 
     /**
      * 使能底盘并进入 stop 状态
      * @return 是否成功 enable
      */
-    [[nodiscard]] virtual bool enable()
+    virtual bool enable()
     {
         stop();
         return motion_->enable();

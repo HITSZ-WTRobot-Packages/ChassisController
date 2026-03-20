@@ -168,21 +168,37 @@ public:
            sensors::gyro::HWT101CT& gyro,
            uint32_t                 delta_ticks = 1);
 
-    [[nodiscard]] const Velocity& velocityInBody() const override { return velocity_.in_body; }
-    [[nodiscard]] const Velocity& velocityInWorld() const override { return velocity_.in_world; }
-    [[nodiscard]] const Posture&  postureInWorld() const override { return posture_.in_world; }
+    [[nodiscard]] Velocity velocityInBody() const override
+    {
+        return velocity_[idx_.load(std::memory_order_acquire)].in_body;
+    }
+    [[nodiscard]] Velocity velocityInWorld() const override
+    {
+        return velocity_[idx_.load(std::memory_order_acquire)].in_world;
+    }
+    [[nodiscard]] Posture postureInWorld() const override
+    {
+        return posture_[idx_.load(std::memory_order_acquire)].in_world;
+    }
 
 private:
     struct
     {
         Posture in_world;
-    } posture_{};
+    } posture_[2]{};
 
     struct
     {
         Velocity in_world;
         Velocity in_body;
-    } velocity_{};
+    } velocity_[2]{};
+
+    std::atomic<size_t> idx_{ 0 };
+
+    [[nodiscard]] uint32_t next_idx() const
+    {
+        return (idx_.load(std::memory_order_relaxed) + 1) & (2 - 1);
+    }
 };
 
 } // namespace chassis::loc

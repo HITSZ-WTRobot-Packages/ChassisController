@@ -114,20 +114,23 @@ void LocEKF::updateEKF()
                                   .P     = pos_ekf_.covariance(),
                                   .input = { .vel = vel, .yaw_gyro = yaw } });
     }
-    // TODO: 处理这一步的线程安全问题
     updateLoc();
 }
 void LocEKF::updateLoc()
 {
     const auto s = pos_ekf_.state();
 
-    posture_ = { { s[0], s[1], s[2] + s[3] } };
+    const auto nxt = next_idx();
+
+    posture_[nxt] = { { s[0], s[1], s[2] + s[3] } };
 
     const auto [vx, vy, wz] = forwardGetVelocity();
 
-    velocity_.in_body = { vx, vy, gyro_.getWz() };
+    velocity_[nxt].in_body = { vx, vy, gyro_.getWz() };
 
-    velocity_.in_world = BodyVelocity2WorldVelocity(velocity_.in_body);
+    velocity_[nxt].in_world = rotateVelocity(velocity_[nxt].in_body, posture_[nxt].in_world.yaw);
+
+    idx_.store(nxt, std::memory_order_release);
 }
 
 void LocEKF::update()
@@ -174,10 +177,11 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
         x = pos_ekf_.state(), P = pos_ekf_.covariance();
     }
 
-    lock_.store(false, std::memory_order_release);
     // 手动更新堆积的输入
     if (!input_buffer_.empty())
         updateEKF();
+
+    lock_.store(false, std::memory_order_release);
 }
 
 LocEKF::LocEKF(motion::IChassisMotion&  motion,
