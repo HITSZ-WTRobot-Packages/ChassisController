@@ -7,6 +7,10 @@
 
 #include "IChassisMotion.hpp"
 
+#ifndef M_PI
+#    define M_PI 3.14159265358979323846
+#endif
+
 namespace chassis::loc
 {
 LocEKF::PositionEKF::PositionEKF(const Config& cfg) :
@@ -68,7 +72,21 @@ void LocEKF::PositionEKF::lidarUpdate(const Posture& pos)
                 { 0, 0, 1, 1 },
         },
     };
-    const math::Vec3f y{ pos.x - x[0], pos.y - x[1], pos.yaw - x[2] - x[3] };
+    // 连续化处理雷达的角度数据，使其单次误差不会超过 pi
+    constexpr auto wrap = [](float a)
+    {
+        constexpr float pi     = M_PI;
+        constexpr float two_pi = 2.0f * pi;
+
+        while (a > pi)
+            a -= two_pi;
+        while (a <= -pi)
+            a += two_pi;
+
+        return a;
+    };
+
+    const math::Vec3f y{ pos.x - x[0], pos.y - x[1], wrap(pos.yaw - x[2] - x[3]) };
     update(y, H, R_lidar_);
 }
 
