@@ -14,7 +14,7 @@
 namespace chassis::loc
 {
 LocEKF::PositionEKF::PositionEKF(const Config& cfg) :
-    EKF(cfg.x_init.vec(), cfg.covQ.mat(), cfg.noiseQ.mat()), R_gyro_(cfg.noiseR.gyro.mat()),
+    EKF(cfg.x_init.vec(), cfg.covP.mat(), cfg.noiseQ.mat()), R_gyro_(cfg.noiseR.gyro.mat()),
     R_lidar_(cfg.noiseR.lidar.mat())
 {
 }

@@ -69,7 +69,7 @@ private:
                 {
                     return math::mat::diag(VecS{ xy, xy, yaw, yaw_offset });
                 }
-            } covQ;
+            } covP;
 
             // 过程噪声
             struct
