@@ -7,6 +7,7 @@
  * 使用 fastlio2(10Hz) + encoder(1kHz) + HWT101CT(yaw, 1kHz) 融合定位
  */
 #pragma once
+#include "AtomicFlagLock.hpp"
 #include "Deque.hpp"
 #include "HWT101CT.hpp"
 #include "IChassisLoc.hpp"
@@ -148,7 +149,8 @@ private:
 
     uint32_t dticks_{ 1 };
 
-    std::atomic<bool>             lock_{ false };
+    AtomicFlagLock lock_;
+
     [[nodiscard]] constexpr float dt() const { return static_cast<float>(dticks_) * 0.001f; }
 
     void updateInput();

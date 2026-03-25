@@ -12,6 +12,7 @@ target_link_libraries(ChassisLocalizationEKF PUBLIC Chassis::Core)
 target_link_libraries(ChassisLocalizationEKF PUBLIC SensorGyro::HWT101CT)
 target_link_libraries(ChassisLocalizationEKF PUBLIC Math::EKF)
 target_link_libraries(ChassisLocalizationEKF PUBLIC libs::Deque)
+target_link_libraries(ChassisLocalizationEKF PUBLIC libs::Concurrency)
 
 # alias for external use
 add_library(ChassisLocalization::EKF ALIAS ChassisLocalizationEKF)

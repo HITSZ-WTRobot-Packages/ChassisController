@@ -137,7 +137,7 @@ void LocEKF::update()
 {
     updateInput();
     // 如果锁了，说明雷达更在更新，跳过本次更新，等雷达更新完调用更新 EKF
-    if (!lock_.load(std::memory_order_acquire))
+    if (!lock_.is_locked())
     {
         updateEKF();
         // 通过状态更新定位数据
@@ -147,7 +147,7 @@ void LocEKF::update()
 void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
 {
     // 锁定更新状态, 此处假定 updateEKF 由中断调用，本身不会被打断
-    lock_.store(true, std::memory_order_release);
+    AtomicFlagGuard guard(lock_);
 
     const uint32_t last_tick = state_buffer_.empty() ? 0 : state_buffer_.at(-1).input.ticks;
 
@@ -155,20 +155,26 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
     {
         // 直接更新
         pos_ekf_.lidarUpdate(pos);
-        lock_.store(false, std::memory_order_release);
         return;
     }
-    const int state_tick = -static_cast<int>(
+    const int state_tick = static_cast<int>(
             std::ceilf(static_cast<float>(last_tick - ticks) / static_cast<float>(dticks_)));
+
+    if (state_buffer_.size() < state_tick)
+    {
+        // 雷达数据太早，超出保存的状态，跳过
+        return;
+    }
+
     // 获取回溯状态
-    auto& s = state_buffer_[state_tick];
+    auto& s = state_buffer_[-state_tick];
     // 回溯到之前的状态
     pos_ekf_.reset(s.x, s.P);
     // 更新雷达
     pos_ekf_.lidarUpdate(pos);
     s.x = pos_ekf_.state(), s.P = pos_ekf_.covariance();
 
-    for (auto& [x, P, input] : state_buffer_.range(state_tick + 1, 0))
+    for (auto& [x, P, input] : state_buffer_.range(-state_tick + 1, 0))
     {
         // 重放并更新状态
         const auto [_, vel, yaw] = input;
@@ -180,8 +186,6 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
     // 手动更新堆积的输入
     if (!input_buffer_.empty())
         updateEKF();
-
-    lock_.store(false, std::memory_order_release);
 }
 
 LocEKF::LocEKF(motion::IChassisMotion&  motion,
