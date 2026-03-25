@@ -5,13 +5,13 @@
  */
 #pragma once
 
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 #include "SteeringWheel.hpp"
 
-namespace chassis
+namespace chassis::motion
 {
 
-class Special_Steering4 : public IChassis
+class Special_Steering4 : public IChassisMotion
 {
 public:
     enum class WheelType : size_t
@@ -50,8 +50,7 @@ public:
         float y_shift;    // unit: mm
     };
 
-    Special_Steering4(chassis_loc::ILoc& loc, const Config& cfg);
-
+    explicit Special_Steering4(const Config& cfg);
     [[nodiscard]] bool enable() override
     {
         if (enabled_)
@@ -75,10 +74,7 @@ public:
         enabled_ = false;
     }
 
-    [[nodiscard]] bool enabled() const override
-    {
-        return enabled_;
-    }
+    [[nodiscard]] bool enabled() const override { return enabled_; }
 
     void startCalibration()
     {
@@ -86,21 +82,14 @@ public:
             w.startCalibration();
     }
 
-    [[nodiscard]] Velocity forwardGetVelocity() override
-    {
-        return velocity_;
-    }
+    [[nodiscard]] Velocity forwardGetVelocity() override { return velocity_; }
+
+    [[nodiscard]] bool isReady() const override { return !enable_calib_ || calibrated_; }
 
     // Runtime parameter input is mm; internally stored in meters.
-    void setYShift(float y_shift)
-    {
-        y_shift_ = 1e-3f * y_shift;
-    }
+    void setYShift(float y_shift) { y_shift_ = 1e-3f * y_shift; }
 
-    [[nodiscard]] float yShift() const
-    {
-        return 1e3f * y_shift_;
-    }
+    [[nodiscard]] float yShift() const { return 1e3f * y_shift_; }
 
     [[nodiscard]] KinematicParam kinematicParam() const
     {
@@ -111,9 +100,10 @@ public:
         };
     }
 
+    void update() override;
+
 protected:
     void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
 
 private:
     struct WheelPosition
@@ -134,6 +124,7 @@ private:
     float half_distance_x_;
     float half_distance_y_;
     float y_shift_{ 0.0f };
+    float inv_l2_;
     float spd2rpm_;
 
     Velocity velocity_{};
@@ -141,4 +132,4 @@ private:
     steering::SteeringWheel wheel_[static_cast<size_t>(WheelType::Max)];
 };
 
-} // namespace chassis
+} // namespace chassis::motion
