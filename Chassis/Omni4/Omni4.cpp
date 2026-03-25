@@ -8,6 +8,7 @@
 #include <cmath>
 
 #define RPS2RPM(__RPS__) ((__RPS__) * 60.0f / (2.0f * 3.14159265358979323846f))
+<<<<<<< HEAD
 #define DEG2RAD(__DEG__) ((__DEG__) * (float) 3.14159265358979323846f / 180.0f)
 #define RPM2DPS(__RPM__) ((__RPM__) / 60.0f * 360.0f)
 
@@ -18,13 +19,29 @@ namespace
 static constexpr float kInvSqrt2 = 0.7071067811865475f;
 
 static constexpr size_t idx(const Omni4::WheelType w)
+=======
+#define DEG2RAD(__DEG__) ((__DEG__) * (float)3.14159265358979323846f / 180.0f)
+#define RPM2DPS(__RPM__) ((__RPM__) / 60.0f * 360.0f)
+
+namespace chassis::motion
+{
+namespace
+{
+constexpr float kInvSqrt2 = 0.7071067811865475f;
+
+constexpr size_t idx(const Omni4::WheelType w)
+>>>>>>> main
 {
     return static_cast<size_t>(w);
 }
 } // namespace
 
+<<<<<<< HEAD
 Omni4::Omni4(chassis_loc::ILoc& loc, const Config& cfg) :
     IChassis(loc), wheel_radius_(cfg.wheel_radius * 1e-3f)
+=======
+Omni4::Omni4(const Config& cfg) : wheel_radius_(cfg.wheel_radius * 1e-3f)
+>>>>>>> main
 {
     const float half_x = cfg.wheel_distance_x * 1e-3f * 0.5f;
     const float half_y = cfg.wheel_distance_y * 1e-3f * 0.5f;
@@ -80,7 +97,11 @@ void Omni4::applyVelocity(const Velocity& velocity)
     wheel_[idx(WheelType::RearRight)]->setRef(RPS2RPM(v_rr / wheel_radius_));
 }
 
+<<<<<<< HEAD
 void Omni4::velocityControllerUpdate()
+=======
+void Omni4::update()
+>>>>>>> main
 {
     if (!enabled())
         return;
@@ -88,7 +109,11 @@ void Omni4::velocityControllerUpdate()
         w->update();
 }
 
+<<<<<<< HEAD
 IChassis::Velocity Omni4::forwardGetVelocity()
+=======
+Velocity Omni4::forwardGetVelocity()
+>>>>>>> main
 {
     Velocity vel{};
 
@@ -115,4 +140,8 @@ IChassis::Velocity Omni4::forwardGetVelocity()
     return vel;
 }
 
+<<<<<<< HEAD
 } // namespace chassis
+=======
+} // namespace chassis::motion
+>>>>>>> main

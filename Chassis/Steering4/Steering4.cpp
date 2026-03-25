@@ -14,13 +14,14 @@
 #define RAD2DEG(__RAD__) ((__RAD__) / 3.14159265358979323846f * 180)
 #define DEG2RAD(__DEG__) ((__DEG__) * 3.14159265358979323846f / 180)
 
-namespace chassis
+namespace chassis::motion
 {
-Steering4::Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
-    IChassis(loc), enable_calib_(cfg.enable_calibration), //
-    wheel_radius_(1e-3f * cfg.radius),                    // mm to m
+Steering4::Steering4(const Config& cfg) :
+    enable_calib_(cfg.enable_calibration), //
+    wheel_radius_(1e-3f * cfg.radius),     // mm to m
     half_distance_x(0.5e-3f * cfg.distance_x), half_distance_y(0.5e-3f * cfg.distance_y),
-    inv_l2_(1.0e6f / (cfg.distance_x * cfg.distance_x + cfg.distance_y * cfg.distance_y)),
+    inv_l2_(4.0f / ((1e-3f * cfg.distance_x) * (1e-3f * cfg.distance_x) +
+                    (1e-3f * cfg.distance_y) * (1e-3f * cfg.distance_y))),
     spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f), wheel_{
         steering::SteeringWheel(cfg.wheel_front_right.cfg,
                                 cfg.enable_calibration,
@@ -40,13 +41,12 @@ Steering4::Steering4(chassis_loc::ILoc& loc, const Config& cfg) :
 
 void Steering4::applyVelocity(const Velocity& velocity)
 {
-    if (enable_calib_ && !calibrated_)
+    if (!isReady())
         // 需要校准但未校准，无法设置速度
         return;
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
     {
-        const auto [xi, yi] = getWheelPosition(static_cast<WheelType>(i));
-        // ILoc velocity interface uses deg/s; convert to rad/s for kinematic computation.
+        const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
         const float wz_rad    = DEG2RAD(velocity.wz);
         const float vxi       = velocity.vx - wz_rad * yi;
         const float vyi       = velocity.vy + wz_rad * xi;
@@ -66,7 +66,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
         }
     }
 }
-void Steering4::velocityControllerUpdate()
+void Steering4::update()
 {
     if (enable_calib_ && !calibrated_)
     {
@@ -94,7 +94,6 @@ void Steering4::velocityControllerUpdate()
         }
         velocity_.vx = 0.25f * vx;
         velocity_.vy = 0.25f * vy;
-        // Internal solve gives rad/s, while outward velocity convention is deg/s.
         velocity_.wz = RAD2DEG(inv_l2_ * wz);
     }
 
@@ -113,4 +112,4 @@ Steering4::WheelPosition Steering4::getWheelPosition(WheelType wheel) const
         ky * half_distance_y,
     };
 }
-} // namespace chassis
+} // namespace chassis::motion

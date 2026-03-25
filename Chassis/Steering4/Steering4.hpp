@@ -8,13 +8,13 @@
  *
  */
 #pragma once
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 #include "SteeringWheel.hpp"
 
-namespace chassis
+namespace chassis::motion
 {
 
-class Steering4 : public IChassis
+class Steering4 : public IChassisMotion
 {
 public:
     enum class WheelType : size_t
@@ -44,7 +44,7 @@ public:
         Wheel wheel_rear_right;  ///< 右后方
     };
 
-    Steering4(chassis_loc::ILoc& loc, const Config& cfg);
+    explicit Steering4(const Config& cfg);
     [[nodiscard]] bool enable() override
     {
         if (enabled_)
@@ -74,14 +74,14 @@ public:
             w.startCalibration();
     }
 
-    Velocity forwardGetVelocity() override
-    {
-        return velocity_;
-    }
+    Velocity forwardGetVelocity() override { return velocity_; }
+
+    [[nodiscard]] bool isReady() const override { return !enable_calib_ || calibrated_; }
+
+    void update() override;
 
 protected:
     void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
 
 private:
     bool enabled_{ false };
@@ -106,4 +106,4 @@ private:
     [[nodiscard]] WheelPosition getWheelPosition(WheelType wheel) const;
 };
 
-} // namespace chassis
+} // namespace chassis::motion

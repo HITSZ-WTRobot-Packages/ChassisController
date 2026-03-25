@@ -5,14 +5,14 @@
  */
 #ifndef MECANUM4_HPP
 #define MECANUM4_HPP
-#include "IChassis.hpp"
+#include "IChassisMotion.hpp"
 #include <cstddef>
 #include "motor_vel_controller.hpp"
 
-namespace chassis
+namespace chassis::motion
 {
 
-class Mecanum4 : public IChassis
+class Mecanum4 : public IChassisMotion
 {
 public:
     enum class WheelType : size_t
@@ -42,21 +42,21 @@ public:
         controllers::MotorVelController* wheel_rear_right;  ///< 右后方
     };
 
-    Mecanum4(chassis_loc::ILoc& loc, const Config& driver_cfg);
+    explicit Mecanum4(const Config& driver_cfg);
 
     bool enable() override;
     void disable() override;
 
-    [[nodiscard]] bool enabled() const override
-    {
-        return enabled_;
-    }
+    [[nodiscard]] bool enabled() const override { return enabled_; }
 
     Velocity forwardGetVelocity() override;
 
+    void update() override;
+
+    [[nodiscard]] bool isReady() const override { return true; }
+
 protected:
     void applyVelocity(const Velocity& velocity) override;
-    void velocityControllerUpdate() override;
 
 private:
     bool        enabled_{ false };
@@ -67,6 +67,6 @@ private:
     controllers::MotorVelController* wheel_[static_cast<size_t>(WheelType::Max)]{};
 };
 
-} // namespace chassis
+} // namespace chassis::motion
 
 #endif // MECANUM4_HPP

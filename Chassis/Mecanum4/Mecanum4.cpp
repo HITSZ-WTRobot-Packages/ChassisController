@@ -11,19 +11,19 @@
  */
 #define RPS2RPM(__RPS__) ((__RPS__) * 60.0f / (2 * 3.14159265358979323846f))
 
-#define DEG2RAD(__DEG__) ((__DEG__) * (float) 3.14159265358979323846f / 180.0f)
+#define DEG2RAD(__DEG__) ((__DEG__) * (float)3.14159265358979323846f / 180.0f)
 
 #define RPM2DPS(__RPM__) ((__RPM__) / 60.0f * 360.0f)
 
-namespace chassis
+namespace chassis::motion
 {
 static constexpr size_t idx(Mecanum4::WheelType w)
 {
     return static_cast<size_t>(w);
 }
 
-Mecanum4::Mecanum4(chassis_loc::ILoc& loc, const Config& driver_cfg) :
-    IChassis(loc), type_(driver_cfg.chassis_type), wheel_radius_(driver_cfg.wheel_radius * 1e-3f)
+Mecanum4::Mecanum4(const Config& driver_cfg) :
+    type_(driver_cfg.chassis_type), wheel_radius_(driver_cfg.wheel_radius * 1e-3f)
 {
     const float half_x = driver_cfg.wheel_distance_x * 1e-3f * 0.5f;
     const float half_y = driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
@@ -115,7 +115,7 @@ void Mecanum4::applyVelocity(const Velocity& velocity)
  *
  * @note 推荐控制调用频率 1kHz，调用频率将会影响轮子的 PID 参数
  */
-void Mecanum4::velocityControllerUpdate()
+void Mecanum4::update()
 {
     if (!enabled())
         return;
@@ -123,7 +123,7 @@ void Mecanum4::velocityControllerUpdate()
         wheel->update();
 }
 
-IChassis::Velocity Mecanum4::forwardGetVelocity()
+Velocity Mecanum4::forwardGetVelocity()
 {
     Velocity vel{};
     vel.vx = RPM2DPS(wheel_radius_ * 0.25f *
@@ -161,4 +161,4 @@ IChassis::Velocity Mecanum4::forwardGetVelocity()
     return vel;
 }
 
-} // namespace chassis
+} // namespace chassis::motion
