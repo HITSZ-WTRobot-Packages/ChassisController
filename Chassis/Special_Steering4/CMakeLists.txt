@@ -1,5 +1,5 @@
 add_library(ChassisSpecial_Steering4 STATIC
-        "SteeringWheel.cpp"
+        "Special_SteeringWheel.cpp"
         "Special_Steering4.cpp"
 )
 

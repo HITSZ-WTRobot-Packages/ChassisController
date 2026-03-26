@@ -3,15 +3,16 @@
  * @author  syhanjin
  * @date    2026-02-28
  */
-#include "SteeringWheel.hpp"
+#include "Special_SteeringWheel.hpp"
 
 namespace chassis::steering
 {
-constexpr SteeringWheel::CalibrationConfig kDefaultCalibration{};
+constexpr Special_SteeringWheel::CalibrationConfig kDefaultCalibration{};
 
-SteeringWheel::SteeringWheel(const Config&            cfg,
-                             const bool               enable_calib = false,
-                             const CalibrationConfig& calib_cfg    = kDefaultCalibration) :
+Special_SteeringWheel::Special_SteeringWheel(
+        const Config&            cfg,
+        const bool               enable_calib = false,
+        const CalibrationConfig& calib_cfg    = kDefaultCalibration) :
     cfg_(cfg), enable_calib_(enable_calib), calib_cfg_(calib_cfg)
 {
     assert(cfg_.drive_motor != nullptr);
@@ -22,7 +23,7 @@ SteeringWheel::SteeringWheel(const Config&            cfg,
 /**
  * 舵轮校准，只允许被调用一次
  */
-void SteeringWheel::startCalibration()
+void Special_SteeringWheel::startCalibration()
 {
     if (!enable_calib_ || !enabled() || calib_state_ != CalibState::Idle)
         return;
@@ -46,13 +47,13 @@ void SteeringWheel::startCalibration()
     calib_cfg_.steer_motor->enable();
 }
 
-void SteeringWheel::setTargetVelocity(const Velocity& vel)
+void Special_SteeringWheel::setTargetVelocity(const Velocity& vel)
 {
     target_vel_ = toBestVelocity(vel);
     cfg_.steer_motor->setRef(toMotorAngle(target_vel_.angle));
     cfg_.drive_motor->setRef(vel.speed);
 }
-void SteeringWheel::update() const
+void Special_SteeringWheel::update() const
 {
     cfg_.steer_motor->update();
     cfg_.drive_motor->update();
@@ -60,7 +61,7 @@ void SteeringWheel::update() const
         calib_cfg_.steer_motor->update();
 }
 
-void SteeringWheel::photogateTrigger()
+void Special_SteeringWheel::photogateTrigger()
 {
     switch (calib_state_)
     {
@@ -81,9 +82,9 @@ void SteeringWheel::photogateTrigger()
     }
 }
 
-SteeringWheel::Velocity SteeringWheel::toBestVelocity(Velocity velocity) const
+Special_SteeringWheel::Velocity Special_SteeringWheel::toBestVelocity(Velocity velocity) const
 {
-    uint32_t round         = 0;                 // 当前角度对应的圈数（整圈计数）
+    uint32_t round         = 0;                 // 当前角度相对于目标角度的整圈数量
     float    current_angle = target_vel_.angle; // 当前角度（可能大于360°或小于0°）
 
     /* 角度归一化，将当前角度调整到 [0, 360) 范围内，同时记录整圈数量 */

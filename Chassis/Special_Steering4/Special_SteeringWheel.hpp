@@ -1,7 +1,7 @@
 /**
- * @file    SteeringWheel.hpp
- * @author  syhanjin
- * @date    2026-02-28
+ * @file    Special_SteeringWheel.hpp
+ * @author  rediduck
+ * @date    2026-03-26
  */
 #pragma once
 #include "motor_pos_controller.hpp"
@@ -11,7 +11,7 @@
 namespace chassis::steering
 {
 
-class SteeringWheel
+class Special_SteeringWheel
 {
 public:
     struct Velocity
@@ -41,7 +41,7 @@ public:
         float steer_offset; // 舵向偏置，如果有光电门，则是光电门所在角度，如果是云台电机，则是零点所在角度
     };
 
-    explicit SteeringWheel(const Config& cfg, bool enable_calib, const CalibrationConfig&);
+    explicit Special_SteeringWheel(const Config& cfg, bool enable_calib, const CalibrationConfig&);
 
     void startCalibration();
     void setTargetVelocity(const Velocity& vel);
@@ -80,10 +80,7 @@ public:
         return cfg_.drive_motor->enabled() && cfg_.steer_motor->enabled();
     }
 
-    [[nodiscard]] bool isCalibrated() const
-    {
-        return calib_state_ == CalibState::Done;
-    }
+    [[nodiscard]] bool isCalibrated() const { return calib_state_ == CalibState::Done; }
 
     void update() const;
 
@@ -98,7 +95,7 @@ private:
 
     static void PhotogateCallback(const GPIO_t* gpio, uint32_t counter, void* data)
     {
-        static_cast<SteeringWheel*>(data)->photogateTrigger();
+        static_cast<Special_SteeringWheel*>(data)->photogateTrigger();
     }
 
     void photogateTrigger();

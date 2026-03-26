@@ -1,12 +1,12 @@
 /**
  * @file    Special_Steering4.hpp
- * @author  syhanjin
- * @date    2026-03-09
+ * @author  rediduck
+ * @date    2026-03-26
  */
 #pragma once
 
 #include "IChassisMotion.hpp"
-#include "SteeringWheel.hpp"
+#include "Special_SteeringWheel.hpp"
 
 namespace chassis::motion
 {
@@ -33,8 +33,8 @@ public:
 
         struct Wheel
         {
-            steering::SteeringWheel::Config            cfg;
-            steering::SteeringWheel::CalibrationConfig calib_cfg;
+            steering::Special_SteeringWheel::Config            cfg;
+            steering::Special_SteeringWheel::CalibrationConfig calib_cfg;
         };
 
         Wheel wheel_front_right;
@@ -129,7 +129,7 @@ private:
 
     Velocity velocity_{};
 
-    steering::SteeringWheel wheel_[static_cast<size_t>(WheelType::Max)];
+    steering::Special_SteeringWheel wheel_[static_cast<size_t>(WheelType::Max)];
 };
 
 } // namespace chassis::motion
