@@ -32,8 +32,6 @@ public:
 
     virtual Velocity forwardGetVelocity() = 0;
 
-    virtual void update() = 0;
-
 protected:
     explicit IChassisMotion() {}
 

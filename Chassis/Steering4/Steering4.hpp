@@ -78,7 +78,7 @@ public:
 
     [[nodiscard]] bool isReady() const override { return !enable_calib_ || calibrated_; }
 
-    void update() override;
+    void update();
 
 protected:
     void applyVelocity(const Velocity& velocity) override;

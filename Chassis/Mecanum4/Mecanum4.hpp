@@ -51,7 +51,7 @@ public:
 
     Velocity forwardGetVelocity() override;
 
-    void update() override;
+    void update();
 
     [[nodiscard]] bool isReady() const override { return true; }
 
