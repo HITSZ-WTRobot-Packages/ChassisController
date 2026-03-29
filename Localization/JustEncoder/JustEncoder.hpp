@@ -17,9 +17,9 @@ public:
 
     void update(float dt);
 
-    [[nodiscard]] const Velocity& velocityInBody() const override { return velocity_.in_body; }
-    [[nodiscard]] const Velocity& velocityInWorld() const override { return velocity_.in_world; }
-    [[nodiscard]] const Posture&  postureInWorld() const override { return posture_.in_world; }
+    [[nodiscard]] Velocity velocityInBody() const override { return velocity_.in_body; }
+    [[nodiscard]] Velocity velocityInWorld() const override { return velocity_.in_world; }
+    [[nodiscard]] Posture  postureInWorld() const override { return posture_.in_world; }
 
 private:
     struct
