@@ -160,7 +160,7 @@ void LocEKF::updateLidar(const Posture& pos, const uint32_t ticks)
     const int state_tick = static_cast<int>(
             std::ceilf(static_cast<float>(last_tick - ticks) / static_cast<float>(dticks_)));
 
-    if (state_buffer_.size() < state_tick)
+    if (static_cast<int>(state_buffer_.size()) < state_tick)
     {
         // 雷达数据太早，超出保存的状态，跳过
         return;
