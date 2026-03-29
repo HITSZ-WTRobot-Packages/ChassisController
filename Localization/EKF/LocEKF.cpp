@@ -72,16 +72,14 @@ void LocEKF::PositionEKF::lidarUpdate(const Posture& pos)
                 { 0, 0, 1, 1 },
         },
     };
-    // 连续化处理雷达的角度数据，使其单次误差不会超过 pi
+    // 注意在这里我们用的是角度制 // fuck
+    // 连续化处理雷达的角度数据，使其单次误差不会超过 180deg
     constexpr auto wrap = [](float a)
     {
-        constexpr float pi     = M_PI;
-        constexpr float two_pi = 2.0f * pi;
-
-        while (a > pi)
-            a -= two_pi;
-        while (a <= -pi)
-            a += two_pi;
+        while (a > 180)
+            a -= 360;
+        while (a <= -180)
+            a += 360;
 
         return a;
     };
