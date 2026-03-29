@@ -4,7 +4,7 @@ add_library(ChassisLocalizationJustEncoder STATIC
 
 target_include_directories(ChassisLocalizationJustEncoder
         PUBLIC
-        ..
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # link dependencies if any
