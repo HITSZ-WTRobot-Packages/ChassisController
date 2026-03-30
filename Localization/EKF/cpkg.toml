@@ -1,0 +1,4 @@
+name = "EKF"
+pkgname = "ChassisLocalization::EKF"
+version = "0.1.0"
+dependencies = ["Chassis::Core", "SensorGyro::HWT101CT", "Math::EKF", "libs::Deque", "libs::Concurrency"]

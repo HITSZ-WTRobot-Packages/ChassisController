@@ -23,37 +23,19 @@ public:
 
     virtual ~IChassisLoc() = default;
 
-    [[nodiscard]] virtual const Velocity& velocityInBody() const  = 0;
-    [[nodiscard]] virtual const Velocity& velocityInWorld() const = 0;
+    [[nodiscard]] virtual Velocity velocityInBody() const  = 0;
+    [[nodiscard]] virtual Velocity velocityInWorld() const = 0;
 
-    [[nodiscard]] virtual const Posture& postureInWorld() const = 0;
+    [[nodiscard]] virtual Posture postureInWorld() const = 0;
 
     [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const
     {
-        const float _sin_yaw = sinf(DEG2RAD(-postureInWorld().yaw)),
-                    _cos_yaw = cosf(DEG2RAD(-postureInWorld().yaw));
-
-        const Velocity velocity_in_body = {
-            .vx = velocity_in_world.vx * _cos_yaw - velocity_in_world.vy * _sin_yaw,
-            .vy = velocity_in_world.vx * _sin_yaw + velocity_in_world.vy * _cos_yaw,
-            .wz = velocity_in_world.wz
-        };
-
-        return velocity_in_body;
+        return rotateVelocity(velocity_in_world, -postureInWorld().yaw);
     }
 
     [[nodiscard]] Velocity BodyVelocity2WorldVelocity(const Velocity& velocity_in_body) const
     {
-        const float sin_yaw = sinf(DEG2RAD(postureInWorld().yaw)),
-                    cos_yaw = cosf(DEG2RAD(postureInWorld().yaw));
-
-        const Velocity velocity_in_world = {
-            .vx = velocity_in_body.vx * cos_yaw - velocity_in_body.vy * sin_yaw,
-            .vy = velocity_in_body.vx * sin_yaw + velocity_in_body.vy * cos_yaw,
-            .wz = velocity_in_body.wz,
-        };
-
-        return velocity_in_world;
+        return rotateVelocity(velocity_in_body, postureInWorld().yaw);
     }
 
     [[nodiscard]] Posture WorldPosture2BodyPosture(const Posture& posture_in_world) const
@@ -90,6 +72,19 @@ protected:
     motion::IChassisMotion* motion_{ nullptr };
 
     [[nodiscard]] auto forwardGetVelocity() const { return motion_->forwardGetVelocity(); }
+
+    [[nodiscard]] static Velocity rotateVelocity(const Velocity& inp, const float theta)
+    {
+        const float sin_yaw = sinf(DEG2RAD(theta)), cos_yaw = cosf(DEG2RAD(theta));
+
+        const Velocity out = {
+            .vx = inp.vx * cos_yaw - inp.vy * sin_yaw,
+            .vy = inp.vx * sin_yaw + inp.vy * cos_yaw,
+            .wz = inp.wz,
+        };
+
+        return out;
+    }
 };
 
 } // namespace chassis::loc
