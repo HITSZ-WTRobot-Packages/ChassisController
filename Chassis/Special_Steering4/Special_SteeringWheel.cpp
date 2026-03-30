@@ -51,7 +51,7 @@ void Special_SteeringWheel::setTargetVelocity(const Velocity& vel)
 {
     target_vel_ = toBestVelocity(vel);
     cfg_.steer_motor->setRef(toMotorAngle(target_vel_.angle));
-    cfg_.drive_motor->setRef(vel.speed);
+    cfg_.drive_motor->setRef(target_vel_.speed);
 }
 void Special_SteeringWheel::update() const
 {
@@ -84,8 +84,8 @@ void Special_SteeringWheel::photogateTrigger()
 
 Special_SteeringWheel::Velocity Special_SteeringWheel::toBestVelocity(Velocity velocity) const
 {
-    uint32_t round         = 0;                 // 当前角度相对于目标角度的整圈数量
-    float    current_angle = target_vel_.angle; // 当前角度（可能大于360°或小于0°）
+    int32_t round         = 0;                 // 当前角度相对于目标角度的整圈数量
+    float   current_angle = target_vel_.angle; // 当前角度（可能大于360°或小于0°）
 
     /* 角度归一化，将当前角度调整到 [0, 360) 范围内，同时记录整圈数量 */
     while (current_angle > 360.0f)
