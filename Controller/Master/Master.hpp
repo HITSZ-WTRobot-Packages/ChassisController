@@ -43,14 +43,14 @@ public:
     };
 
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
-        IChassisController(motion, loc), lock_(osMutexNew(nullptr)),                   //
-        limit_x_{ cfg.limit.x }, limit_y_{ cfg.limit.y }, limit_yaw_{ cfg.limit.yaw }, //
-        posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
-                                        MITPD(cfg.posture_error_pd_cfg.vy),
-                                        MITPD(cfg.posture_error_pd_cfg.wz) },
-                             .curve = { velocity_profile::SCurveProfile(cfg.limit.x, 0, 0, 0, 0),
-                                        velocity_profile::SCurveProfile(cfg.limit.y, 0, 0, 0, 0),
-                                        velocity_profile::SCurveProfile(cfg.limit.yaw, 0, 0, 0, 0) }
+        IChassisController(motion, loc), lock_(osMutexNew(nullptr)),             //
+        limit_x_{cfg.limit.x}, limit_y_{cfg.limit.y}, limit_yaw_{cfg.limit.yaw}, //
+        posture_trajectory_{.pd    = {MITPD(cfg.posture_error_pd_cfg.vx),
+                                      MITPD(cfg.posture_error_pd_cfg.vy),
+                                      MITPD(cfg.posture_error_pd_cfg.wz)},
+                            .curve = {velocity_profile::SCurveProfile(cfg.limit.x, 0, 0, 0, 0),
+                                      velocity_profile::SCurveProfile(cfg.limit.y, 0, 0, 0, 0),
+                                      velocity_profile::SCurveProfile(cfg.limit.yaw, 0, 0, 0, 0)}
 
         }
     {
@@ -175,7 +175,7 @@ public:
         ctrl_mode_ = CtrlMode::Stopped;
 
         posture_trajectory_.p_ref_curr_ = postureInWorld();
-        posture_trajectory_.v_ref_curr_ = { 0, 0, 0 };
+        posture_trajectory_.v_ref_curr_ = {0, 0, 0};
 
         isr_unlock(saved);
         osMutexRelease(lock_);
@@ -199,14 +199,14 @@ public:
         this->posture_trajectory_.now = now;
 
         // 计算前馈速度
-        this->posture_trajectory_.v_ref_curr_ = { .vx = posture_trajectory_.curve.x.CalcV(now),
-                                                  .vy = posture_trajectory_.curve.y.CalcV(now),
-                                                  .wz = posture_trajectory_.curve.yaw.CalcV(now) };
+        this->posture_trajectory_.v_ref_curr_ = {.vx = posture_trajectory_.curve.x.CalcV(now),
+                                                 .vy = posture_trajectory_.curve.y.CalcV(now),
+                                                 .wz = posture_trajectory_.curve.yaw.CalcV(now)};
 
         // 计算当前目标
-        this->posture_trajectory_.p_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcX(now),
-                                                  .y   = posture_trajectory_.curve.y.CalcX(now),
-                                                  .yaw = posture_trajectory_.curve.yaw.CalcX(now) };
+        this->posture_trajectory_.p_ref_curr_ = {.x   = posture_trajectory_.curve.x.CalcX(now),
+                                                 .y   = posture_trajectory_.curve.y.CalcX(now),
+                                                 .yaw = posture_trajectory_.curve.yaw.CalcX(now)};
 
         apply_position_velocity();
     }
@@ -260,7 +260,7 @@ public:
 private:
     osMutexId_t lock_;
 
-    CtrlMode ctrl_mode_{ CtrlMode::Stopped }; ///< 当前控制模式
+    CtrlMode ctrl_mode_{CtrlMode::Stopped}; ///< 当前控制模式
 
     AxisLimit limit_x_;
     AxisLimit limit_y_;
@@ -326,9 +326,9 @@ private:
     {
         // 叠加前馈和 pd 输出
         const Velocity velocity_in_world = {
-            posture_trajectory_.v_ref_curr_.vx + posture_trajectory_.pd.vx.getOutput(),
-            posture_trajectory_.v_ref_curr_.vy + posture_trajectory_.pd.vy.getOutput(),
-            posture_trajectory_.v_ref_curr_.wz + posture_trajectory_.pd.wz.getOutput(),
+                posture_trajectory_.v_ref_curr_.vx + posture_trajectory_.pd.vx.getOutput(),
+                posture_trajectory_.v_ref_curr_.vy + posture_trajectory_.pd.vy.getOutput(),
+                posture_trajectory_.v_ref_curr_.wz + posture_trajectory_.pd.wz.getOutput(),
         };
 
         // 将世界坐标系速度转换为底盘坐标系速度

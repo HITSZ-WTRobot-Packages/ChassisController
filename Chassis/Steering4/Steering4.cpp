@@ -20,21 +20,22 @@ Steering4::Steering4(const Config& cfg) :
     enable_calib_(cfg.enable_calibration), //
     wheel_radius_(1e-3f * cfg.radius),     // mm to m
     half_distance_x(0.5e-3f * cfg.distance_x), half_distance_y(0.5e-3f * cfg.distance_y),
-    inv_l2_(4.0f / ((1e-3f * cfg.distance_x) * (1e-3f * cfg.distance_x) +
+    inv_l2_(1.0f / ((1e-3f * cfg.distance_x) * (1e-3f * cfg.distance_x) +
                     (1e-3f * cfg.distance_y) * (1e-3f * cfg.distance_y))),
-    spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f), wheel_{
-        steering::SteeringWheel(cfg.wheel_front_right.cfg,
-                                cfg.enable_calibration,
-                                cfg.wheel_front_right.calib_cfg),
-        steering::SteeringWheel(cfg.wheel_front_left.cfg,
-                                cfg.enable_calibration,
-                                cfg.wheel_front_left.calib_cfg),
-        steering::SteeringWheel(cfg.wheel_rear_left.cfg,
-                                cfg.enable_calibration,
-                                cfg.wheel_rear_left.calib_cfg),
-        steering::SteeringWheel(cfg.wheel_rear_right.cfg,
-                                cfg.enable_calibration,
-                                cfg.wheel_rear_right.calib_cfg),
+    spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f),
+    wheel_{
+            steering::SteeringWheel(cfg.wheel_front_right.cfg,
+                                    cfg.enable_calibration,
+                                    cfg.wheel_front_right.calib_cfg),
+            steering::SteeringWheel(cfg.wheel_front_left.cfg,
+                                    cfg.enable_calibration,
+                                    cfg.wheel_front_left.calib_cfg),
+            steering::SteeringWheel(cfg.wheel_rear_left.cfg,
+                                    cfg.enable_calibration,
+                                    cfg.wheel_rear_left.calib_cfg),
+            steering::SteeringWheel(cfg.wheel_rear_right.cfg,
+                                    cfg.enable_calibration,
+                                    cfg.wheel_rear_right.calib_cfg),
     }
 {
 }
@@ -62,7 +63,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
         else
         {
             const float angle = RAD2DEG(atan2f(vyi, vxi));
-            wheel_[i].setTargetVelocity({ angle, speed_rpm });
+            wheel_[i].setTargetVelocity({angle, speed_rpm});
         }
     }
 }
@@ -103,13 +104,14 @@ void Steering4::update()
 
 Steering4::WheelPosition Steering4::getWheelPosition(WheelType wheel) const
 {
-    constexpr WheelPosition WHEEL_POS[static_cast<size_t>(WheelType::Max)] = {
-        { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }
-    };
+    constexpr WheelPosition WHEEL_POS[static_cast<size_t>(WheelType::Max)] = {{1, -1},
+                                                                              {1, 1},
+                                                                              {-1, 1},
+                                                                              {-1, -1}};
     const auto [kx, ky] = WHEEL_POS[static_cast<size_t>(wheel)];
     return {
-        kx * half_distance_x,
-        ky * half_distance_y,
+            kx * half_distance_x,
+            ky * half_distance_y,
     };
 }
 } // namespace chassis::motion
