@@ -10,6 +10,8 @@
 #include "s_curve.hpp"
 #include "mit_pd.hpp"
 #include "cmsis_os2.h"
+
+#include <algorithm>
 #include <cmath>
 
 namespace chassis::controller
@@ -73,10 +75,23 @@ public:
         }
         // 初始化 S 型曲线
         // 衔接当前位置，速度，如果之前是位置控制还会衔接加速度
+        // 此处需要保证不超过限制，避免产生规划失败的问题
         const velocity_profile::SCurveProfile //
-                curve_x(limit_x_, x, vx, ax, absolute_target.x),
-                curve_y(limit_y_, y, vy, ay, absolute_target.y),
-                curve_yaw(limit_yaw_, yaw, wz, ayaw, absolute_target.yaw);
+                curve_x(limit_x_,
+                        x,
+                        std::clamp(vx, -limit_x_.max_spd, limit_x_.max_spd),
+                        std::clamp(ax, -limit_x_.max_acc, limit_x_.max_acc),
+                        absolute_target.x),
+                curve_y(limit_y_,
+                        y,
+                        std::clamp(vy, -limit_y_.max_spd, limit_y_.max_spd),
+                        std::clamp(ay, -limit_y_.max_acc, limit_y_.max_acc),
+                        absolute_target.y),
+                curve_yaw(limit_yaw_,
+                          yaw,
+                          std::clamp(wz, -limit_yaw_.max_spd, limit_yaw_.max_spd),
+                          std::clamp(ayaw, -limit_yaw_.max_acc, limit_yaw_.max_acc),
+                          absolute_target.yaw);
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
