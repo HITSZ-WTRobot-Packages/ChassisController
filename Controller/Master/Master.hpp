@@ -55,6 +55,8 @@ public:
         PreviousCurve, // 使用上一条轨迹在 now 时刻的位置 / 速度 / 加速度
     };
 
+    static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::CurrentState;
+
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
         IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
         posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
@@ -169,7 +171,7 @@ public:
 
     bool setTargetPostureInWorld(const Posture& absolute_target)
     {
-        return setTargetPostureInWorld(absolute_target, TrajectoryLinkMode::CurrentState, limit_);
+        return setTargetPostureInWorld(absolute_target, defaultTrajectoryLinkMode, limit_);
     }
     bool setTargetPostureInWorld(const Posture& absolute_target, const TrajectoryLinkMode link_mode)
     {
@@ -177,7 +179,7 @@ public:
     }
     bool setTargetPostureInWorld(const Posture& absolute_target, const TrajectoryLimit& limit)
     {
-        return setTargetPostureInWorld(absolute_target, TrajectoryLinkMode::CurrentState, limit);
+        return setTargetPostureInWorld(absolute_target, defaultTrajectoryLinkMode, limit);
     }
 
     /**
@@ -200,7 +202,7 @@ public:
 
     bool setTargetPostureInBody(const Posture& relative_target)
     {
-        return setTargetPostureInBody(relative_target, TrajectoryLinkMode::CurrentState, limit_);
+        return setTargetPostureInBody(relative_target, defaultTrajectoryLinkMode, limit_);
     }
     bool setTargetPostureInBody(const Posture& relative_target, const TrajectoryLinkMode link_mode)
     {
@@ -208,7 +210,7 @@ public:
     }
     bool setTargetPostureInBody(const Posture& relative_target, const TrajectoryLimit& limit)
     {
-        return setTargetPostureInBody(relative_target, TrajectoryLinkMode::CurrentState, limit);
+        return setTargetPostureInBody(relative_target, defaultTrajectoryLinkMode, limit);
     }
 
     [[nodiscard]] bool isTrajectoryFinished() const
