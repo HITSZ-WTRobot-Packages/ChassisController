@@ -22,6 +22,11 @@ class Master : public IChassisController
 public:
     using AxisLimit = velocity_profile::SCurveProfile::Config;
 
+    struct TrajectoryLimit
+    {
+        AxisLimit x, y, yaw;
+    };
+
     struct Config
     {
         struct
@@ -31,10 +36,7 @@ public:
             MITPD::Config wz; ///< 角速度 PD 控制器
         } posture_error_pd_cfg;
 
-        struct
-        {
-            AxisLimit x, y, yaw;
-        } limit{};
+        TrajectoryLimit limit{};
     };
 
     enum class CtrlMode
@@ -44,9 +46,17 @@ public:
         Posture,
     };
 
+    /**
+     * 设置位置目标时曲线的衔接方式
+     */
+    enum class TrajectoryLinkMode
+    {
+        CurrentState,  // 使用当前估计的位姿 / 速度，加速度置零
+        PreviousCurve, // 使用上一条轨迹在 now 时刻的位置 / 速度 / 加速度
+    };
+
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
-        IChassisController(motion, loc), lock_(osMutexNew(nullptr)),                   //
-        limit_x_{ cfg.limit.x }, limit_y_{ cfg.limit.y }, limit_yaw_{ cfg.limit.yaw }, //
+        IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
         posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
                                         MITPD(cfg.posture_error_pd_cfg.vy),
                                         MITPD(cfg.posture_error_pd_cfg.wz) },
@@ -58,40 +68,78 @@ public:
     {
     }
 
-    bool setTargetPostureInWorld(const Posture& absolute_target)
+    /**
+     * 在世界中设置绝对目标位置
+     * @param absolute_target 绝对目标值
+     * @param link_mode 曲线衔接模式，如果上一控制状态不为 Posture，则该项不生效
+     * @param limit 执行过程限制
+     * @return 是否规划成功
+     */
+    bool setTargetPostureInWorld(const Posture&           absolute_target,
+                                 const TrajectoryLinkMode link_mode,
+                                 const TrajectoryLimit&   limit)
     {
         osMutexAcquire(lock_, osWaitForever);
 
-        // copy 当前位置和速度
-        const auto [x, y, yaw]  = postureInWorld();
-        const auto [vx, vy, wz] = velocityInWorld();
+        const auto [limit_x, limit_y, limit_yaw] = limit;
 
-        float ax = 0, ay = 0, ayaw = 0;
-        if (ctrl_mode_ == CtrlMode::Posture)
+        constexpr auto clamp_vel_acc = [&](float& v, float& a, const AxisLimit& l)
         {
+            float amin = -l.max_acc, amax = l.max_acc;
+            if (v < -l.max_spd)
+            {
+                v    = -l.max_spd;
+                amin = 0;
+            }
+            else if (v > l.max_spd)
+            {
+                v    = l.max_spd;
+                amax = 0;
+            }
+            a = std::clamp(a, amin, amax);
+        };
+
+        Velocity v{};
+        Posture  p{};
+        float    ax = 0, ay = 0, ayaw = 0;
+
+        // 如果选择衔接当前状态 或 之前不是位置控制（没有曲线可以衔接）
+        if (link_mode == TrajectoryLinkMode::CurrentState || ctrl_mode_ != CtrlMode::Posture)
+        {
+            // 衔接之前的状态
+
+            // copy 当前位置和速度
+            p = postureInWorld();
+            v = velocityInWorld();
+        }
+        else
+        {
+            // 否则衔接之前的曲线，用于可能的多段路径规划
+            p.x   = posture_trajectory_.curve.x.CalcX(posture_trajectory_.now);
+            p.y   = posture_trajectory_.curve.y.CalcX(posture_trajectory_.now);
+            p.yaw = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now);
+
+            v.vx = posture_trajectory_.curve.x.CalcV(posture_trajectory_.now);
+            v.vy = posture_trajectory_.curve.y.CalcV(posture_trajectory_.now);
+            v.wz = posture_trajectory_.curve.yaw.CalcV(posture_trajectory_.now);
+
             ax   = posture_trajectory_.curve.x.CalcA(posture_trajectory_.now);
             ay   = posture_trajectory_.curve.y.CalcA(posture_trajectory_.now);
             ayaw = posture_trajectory_.curve.yaw.CalcA(posture_trajectory_.now);
         }
+        auto [x, y, yaw]  = p;
+        auto [vx, vy, wz] = v;
+
         // 初始化 S 型曲线
-        // 衔接当前位置，速度，如果之前是位置控制还会衔接加速度
         // 此处需要保证不超过限制，避免产生规划失败的问题
+        clamp_vel_acc(vx, ax, limit_x);
+        clamp_vel_acc(vy, ay, limit_y);
+        clamp_vel_acc(wz, ayaw, limit_yaw);
+
         const velocity_profile::SCurveProfile //
-                curve_x(limit_x_,
-                        x,
-                        std::clamp(vx, -limit_x_.max_spd, limit_x_.max_spd),
-                        std::clamp(ax, -limit_x_.max_acc, limit_x_.max_acc),
-                        absolute_target.x),
-                curve_y(limit_y_,
-                        y,
-                        std::clamp(vy, -limit_y_.max_spd, limit_y_.max_spd),
-                        std::clamp(ay, -limit_y_.max_acc, limit_y_.max_acc),
-                        absolute_target.y),
-                curve_yaw(limit_yaw_,
-                          yaw,
-                          std::clamp(wz, -limit_yaw_.max_spd, limit_yaw_.max_spd),
-                          std::clamp(ayaw, -limit_yaw_.max_acc, limit_yaw_.max_acc),
-                          absolute_target.yaw);
+                curve_x(limit_x, x, vx, ax, absolute_target.x),
+                curve_y(limit_y, y, vy, ay, absolute_target.y),
+                curve_yaw(limit_yaw, yaw, wz, ayaw, absolute_target.yaw);
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
@@ -119,13 +167,48 @@ public:
         return true;
     }
 
-    bool setTargetPostureInBody(const Posture& relative_target)
+    bool setTargetPostureInWorld(const Posture& absolute_target)
+    {
+        return setTargetPostureInWorld(absolute_target, TrajectoryLinkMode::CurrentState, limit_);
+    }
+    bool setTargetPostureInWorld(const Posture& absolute_target, const TrajectoryLinkMode link_mode)
+    {
+        return setTargetPostureInWorld(absolute_target, link_mode, limit_);
+    }
+    bool setTargetPostureInWorld(const Posture& absolute_target, const TrajectoryLimit& limit)
+    {
+        return setTargetPostureInWorld(absolute_target, TrajectoryLinkMode::CurrentState, limit);
+    }
+
+    /**
+     * 在世界中设置相对目标位置
+     * @param relative_target 相对目标值
+     * @param link_mode 曲线衔接模式，如果上一控制状态不为 Posture，则该项不生效
+     * @param limit 执行过程限制
+     * @return 是否规划成功
+     */
+    bool setTargetPostureInBody(const Posture&           relative_target,
+                                const TrajectoryLinkMode link_mode,
+                                const TrajectoryLimit&   limit)
     {
         osMutexAcquire(lock_, osWaitForever);
         const auto absolute_target = this->loc().BodyPosture2WorldPosture(relative_target);
         osMutexRelease(lock_);
 
-        return setTargetPostureInWorld(absolute_target);
+        return setTargetPostureInWorld(absolute_target, link_mode, limit);
+    }
+
+    bool setTargetPostureInBody(const Posture& relative_target)
+    {
+        return setTargetPostureInBody(relative_target, TrajectoryLinkMode::CurrentState, limit_);
+    }
+    bool setTargetPostureInBody(const Posture& relative_target, const TrajectoryLinkMode link_mode)
+    {
+        return setTargetPostureInBody(relative_target, link_mode, limit_);
+    }
+    bool setTargetPostureInBody(const Posture& relative_target, const TrajectoryLimit& limit)
+    {
+        return setTargetPostureInBody(relative_target, TrajectoryLinkMode::CurrentState, limit);
     }
 
     [[nodiscard]] bool isTrajectoryFinished() const
@@ -277,9 +360,7 @@ private:
 
     CtrlMode ctrl_mode_{ CtrlMode::Stopped }; ///< 当前控制模式
 
-    AxisLimit limit_x_;
-    AxisLimit limit_y_;
-    AxisLimit limit_yaw_;
+    TrajectoryLimit limit_;
 
     struct
     {
