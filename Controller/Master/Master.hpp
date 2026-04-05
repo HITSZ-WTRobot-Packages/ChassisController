@@ -213,6 +213,44 @@ public:
         return setTargetPostureInBody(relative_target, defaultTrajectoryLinkMode, limit);
     }
 
+    bool setTargetPostureRelativeTo(const Posture&           base_in_world,
+                                    const Posture&           relative_target,
+                                    const TrajectoryLinkMode link_mode,
+                                    const TrajectoryLimit&   limit)
+    {
+        osMutexAcquire(lock_, osWaitForever);
+        const auto absolute_target =
+                loc::IChassisLoc::RelativePosture2WorldPosture(base_in_world, relative_target);
+        osMutexRelease(lock_);
+
+        return setTargetPostureInWorld(absolute_target, link_mode, limit);
+    }
+
+    bool setTargetPostureRelativeTo(const Posture& base_in_world, const Posture& relative_target)
+    {
+        return setTargetPostureRelativeTo(base_in_world,
+                                          relative_target,
+                                          defaultTrajectoryLinkMode,
+                                          limit_);
+    }
+
+    bool setTargetPostureRelativeTo(const Posture&           base_in_world,
+                                    const Posture&           relative_target,
+                                    const TrajectoryLinkMode link_mode)
+    {
+        return setTargetPostureRelativeTo(base_in_world, relative_target, link_mode, limit_);
+    }
+
+    bool setTargetPostureRelativeTo(const Posture&         base_in_world,
+                                    const Posture&         relative_target,
+                                    const TrajectoryLimit& limit)
+    {
+        return setTargetPostureRelativeTo(base_in_world,
+                                          relative_target,
+                                          defaultTrajectoryLinkMode,
+                                          limit);
+    }
+
     [[nodiscard]] bool isTrajectoryFinished() const
     {
         return posture_trajectory_.now >= posture_trajectory_.total_time;
