@@ -2,6 +2,7 @@
  * @file    Mecanum4.cpp
  * @author  syhanjin
  * @date    2026-01-31
+ * @brief   四轮麦克纳姆底盘运动学实现。
  */
 #include "Mecanum4.hpp"
 
@@ -17,6 +18,7 @@
 
 namespace chassis::motion
 {
+// 统一把枚举轮序映射为数组下标，避免在公式里直接写硬编码数字。
 static constexpr size_t idx(Mecanum4::WheelType w)
 {
     return static_cast<size_t>(w);
@@ -25,9 +27,11 @@ static constexpr size_t idx(Mecanum4::WheelType w)
 Mecanum4::Mecanum4(const Config& driver_cfg) :
     type_(driver_cfg.chassis_type), wheel_radius_(driver_cfg.wheel_radius * 1e-3f)
 {
+    // 配置阶段统一把外部使用的 mm 转成内部计算使用的 m。
     const float half_x = driver_cfg.wheel_distance_x * 1e-3f * 0.5f;
     const float half_y = driver_cfg.wheel_distance_y * 1e-3f * 0.5f;
 
+    // k_omega 把角速度项折算成线速度项，具体形式取决于轮子安装构型。
     if (type_ == ChassisType::OType)
         k_omega_ = half_x + half_y;
     else if (type_ == ChassisType::XType)
@@ -42,6 +46,7 @@ bool Mecanum4::enable()
 {
     bool enabled = true;
 
+    // 只要有任意一个轮子使能失败，就整体回滚，避免底盘处于半使能状态。
     for (const auto& w : wheel_)
         enabled &= w->enable();
 
@@ -126,6 +131,7 @@ void Mecanum4::update()
 Velocity Mecanum4::forwardGetVelocity()
 {
     Velocity vel{};
+    // vx 对四个轮子的贡献同号，因此可以直接对四轮速度求和后平均。
     vel.vx = RPM2DPS(wheel_radius_ * 0.25f *
                      DEG2RAD(wheel_[idx(WheelType::FrontRight)]->getMotor()->getVelocity() +
                              wheel_[idx(WheelType::FrontLeft)]->getMotor()->getVelocity() +
@@ -134,6 +140,7 @@ Velocity Mecanum4::forwardGetVelocity()
 
     if (type_ == ChassisType::OType)
     {
+        // O 型和 X 型在 vy / wz 的符号组合不同，因此分别写开更容易校验。
         vel.wz = RPM2DPS(wheel_radius_ / (4 * k_omega_) *
                          (wheel_[idx(WheelType::FrontRight)]->getMotor()->getVelocity() -
                           wheel_[idx(WheelType::FrontLeft)]->getMotor()->getVelocity() +

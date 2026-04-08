@@ -2,10 +2,7 @@
  * @file    Steering4.cpp
  * @author  syhanjin
  * @date    2026-02-28
- * @brief   Brief description of the file
- *
- * Detailed description (optional).
- *
+ * @brief   四舵轮底盘运动学实现。
  */
 #include "Steering4.hpp"
 
@@ -37,6 +34,7 @@ Steering4::Steering4(const Config& cfg) :
                                 cfg.wheel_rear_right.calib_cfg),
     }
 {
+    // inv_l2_ / spd2rpm_ 都是为运行期减少重复计算准备的几何常量。
 }
 
 void Steering4::applyVelocity(const Velocity& velocity)
@@ -48,6 +46,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
     {
         const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
         const float wz_rad    = DEG2RAD(velocity.wz);
+        // 刚体平面运动中，轮心速度 = 底盘平移速度 + 角速度带来的切向速度。
         const float vxi       = velocity.vx - wz_rad * yi;
         const float vyi       = velocity.vy + wz_rad * xi;
         const float speed_rpm = spd2rpm_ * std::hypot(vxi, vyi);
@@ -61,6 +60,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
         }
         else
         {
+            // atan2 给出轮子应该朝向的平面角度，具体是否翻轮由 SteeringWheel 再优化。
             const float angle = RAD2DEG(atan2f(vyi, vxi));
             wheel_[i].setTargetVelocity({ angle, speed_rpm });
         }
@@ -70,7 +70,7 @@ void Steering4::update()
 {
     if (enable_calib_ && !calibrated_)
     {
-        // check calibration state
+        // 校准阶段只判断是否已经全部完成，不输出反馈速度，避免上层误以为底盘可用。
         bool calibrated = true;
         for (auto& w : wheel_)
             calibrated &= w.isCalibrated();
@@ -88,6 +88,7 @@ void Steering4::update()
             const float steer_angle_rad = DEG2RAD(steer_angle);
             const float sin_theta       = sinf(steer_angle_rad);
             const float cos_theta       = cosf(steer_angle_rad);
+            // 把每个轮子的线速度按舵向角投影回车体 x/y，再由几何关系反解角速度。
             vx += driver_speed * cos_theta;
             vy += driver_speed * sin_theta;
             wz += driver_speed * (-yi * cos_theta + xi * sin_theta);
