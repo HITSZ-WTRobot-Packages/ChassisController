@@ -95,9 +95,11 @@ public:
         osMutexAcquire(lock_, osWaitForever);
         const uint32_t saved = isr_lock();
 
-        // stop 时把“当前位置、零速度”作为新的参考点，避免控制器继续追旧轨迹。
+        // stop 时把“当前位置、零速度”作为新的参考点，并丢弃尚未消费的旧轨迹，
+        // 避免控制器切回后继续追之前缓存的历史命令。
         stopped_ = true;
 
+        clearTrajectory();
         p_ref_ = loc_->postureInWorld();
         v_ref_ = { 0, 0, 0 };
 
@@ -111,6 +113,9 @@ public:
      * @return true 表示成功入队；false 表示缓冲区已满，轨迹点未写入
      */
     bool pushTrajectoryPoint(const TrajectoryPoint& point) { return cmd_buffer_.push(point); }
+
+    /// 清空所有尚未消费的轨迹点，常用于控制权交接前丢弃旧命令。
+    void clearTrajectory() { cmd_buffer_.clear(); }
 
 private:
     osMutexId_t lock_;            ///< 保护 stop 等状态切换

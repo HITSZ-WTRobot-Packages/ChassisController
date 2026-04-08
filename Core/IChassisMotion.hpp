@@ -52,6 +52,35 @@ public:
     /// 正向解算得到当前底盘在车体坐标系下的反馈速度。
     virtual Velocity forwardGetVelocity() = 0;
 
+    /**
+     * 尝试让某个 Controller 获取该 Motion 的控制权。
+     *
+     * 同一时刻只允许一个 Controller 真正向 Motion 下发速度命令，
+     * 用来避免多个控制器并发写目标。
+     */
+    virtual bool tryAcquireController(controller::IChassisController* ctrl)
+    {
+        if (controller_ == nullptr)
+        {
+            controller_ = ctrl;
+            return true;
+        }
+        return controller_ == ctrl; // re-acquire allowed
+    }
+
+    /// 释放控制权；只有当前持有者自己可以释放。
+    virtual void releaseController(controller::IChassisController* ctrl)
+    {
+        if (controller_ == ctrl)
+            controller_ = nullptr;
+    }
+
+    /// 当前持有该 Motion 控制权的 Controller。
+    [[nodiscard]] controller::IChassisController* currentController() const
+    {
+        return controller_;
+    }
+
 protected:
     explicit IChassisMotion() {}
 
@@ -59,6 +88,9 @@ protected:
     virtual void applyVelocity(const Velocity& velocity) = 0;
 
     friend class controller::IChassisController;
+
+private:
+    controller::IChassisController* controller_{ nullptr }; ///< 当前持有控制权的控制器
 };
 
 } // namespace chassis::motion
