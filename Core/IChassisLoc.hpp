@@ -68,6 +68,40 @@ public:
         return posture_in_world;
     }
 
+    [[nodiscard]] static Posture RelativePosture2WorldPosture(const Posture& base_in_world,
+                                                              const Posture& posture_in_base)
+    {
+        const float sin_yaw = sinf(DEG2RAD(base_in_world.yaw));
+        const float cos_yaw = cosf(DEG2RAD(base_in_world.yaw));
+
+        return {
+            .x   = posture_in_base.x * cos_yaw - posture_in_base.y * sin_yaw + base_in_world.x,
+            .y   = posture_in_base.x * sin_yaw + posture_in_base.y * cos_yaw + base_in_world.y,
+            .yaw = posture_in_base.yaw + base_in_world.yaw,
+        };
+    }
+
+    [[nodiscard]] static Posture WorldPosture2RelativePosture(const Posture& base_in_world,
+                                                              const Posture& posture_in_world)
+    {
+        const float sin_yaw = sinf(DEG2RAD(-base_in_world.yaw));
+        const float cos_yaw = cosf(DEG2RAD(-base_in_world.yaw));
+
+        const float tx = posture_in_world.x - base_in_world.x;
+        const float ty = posture_in_world.y - base_in_world.y;
+
+        return {
+            .x   = tx * cos_yaw - ty * sin_yaw,
+            .y   = tx * sin_yaw + ty * cos_yaw,
+            .yaw = posture_in_world.yaw - base_in_world.yaw,
+        };
+    }
+
+    [[nodiscard]] Posture CurrentPostureRelativeTo(const Posture& base_in_world) const
+    {
+        return WorldPosture2RelativePosture(base_in_world, postureInWorld());
+    }
+
 protected:
     motion::IChassisMotion* motion_{ nullptr };
 
