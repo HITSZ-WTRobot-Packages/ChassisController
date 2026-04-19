@@ -19,6 +19,7 @@
 - [x] 控制模式
     - [x] `Master`，下位机为主机，内部持有轨迹曲线和误差闭环
     - [x] `Slave`，上位机为主机，下位机消费轨迹点并执行跟踪
+    - [x] 同一套 `Motion + Loc` 运行期交接 `Controller` 控制权
     - [ ] 更多控制模式扩展
 - [x] 依赖边界
     - [x] 通过工作区已有 `MotorVelController` / `MotorPosController` / 陀螺仪驱动等抽象接入
@@ -103,14 +104,15 @@
 
 ### Motion 层
 
-所有底盘运动学实现最终都表现为“可使能、可更新、能反馈车体速度”的对象：
+所有底盘运动学实现最终都表现为“可使能、可更新、能反馈车体速度，并仲裁控制器写权限”的对象：
 
 - `enable()` / `disable()`：底盘电机级使能控制。
 - `isReady()`：底盘是否已经可以被当作完整 `底盘` 使用。对于 `Mecanum4` 和 `Omni4`，当前实现始终 ready；对于
   `Steering4`，启用校准时只有完成校准后才 ready。
 - `forwardGetVelocity()`：返回 Motion 当前估算到的车体坐标系速度。
+- `tryAcquireController()` / `releaseController()` / `currentController()`：管理哪个 `Controller` 当前有权向底盘写速度。
 
-`applyVelocity()` 被设计成受保护接口，只允许 `IChassisController` 及其派生类调用。这是为了避免业务层绕过控制器直接下发底盘速度，破坏控制模式切换时的状态一致性。
+`applyVelocity()` 被设计成受保护接口，只允许 `IChassisController` 及其派生类调用。这是为了避免业务层绕过控制器直接下发底盘速度，破坏控制模式切换时的状态一致性。当前基类还会再检查一次控制权归属，因此失去 ownership 的旧控制器即使内部周期还在继续运行，也不会再真正把速度写入到底盘。
 
 需要特别注意的是，这里的
 `Motion` 抽象只覆盖“全向底盘平面运动”本身。对于带升降、伸缩或其他独立机构的特殊底盘，即使整机从业务角度看可以被理解为更高自由度系统，这些与全向底盘工作范围独立的自由度也不应直接并入本仓库；它们应在上层或其他模块中独立抽象，再与这里的底盘平面运动能力组合使用。
@@ -147,6 +149,15 @@
 - `Master`：下位机自己做轨迹规划和误差闭环，上层下发速度或目标位姿。
 - `Slave`：上位机主导轨迹生成，下位机只负责消费轨迹点并跟踪。
 
+除各自的目标设置接口外，所有 Controller 还共享一组控制权语义：
+
+- `acquireControl()`：只申请 `Motion` 控制权，不负责底盘上电；成功后会立即进入 `stop()` 状态。
+- `releaseControl()`：只释放控制权，不关闭底层执行器。
+- `enable()`：先确保 `Motion` 已使能，再申请控制权。
+- `disable()`：释放控制权并关闭底层执行器。
+- `hasControl()`：当前控制器是否持有底盘控制权。
+- `enabled()`：当前控制器是否“既持有控制权，又已满足底盘可工作条件”。
+
 所有控制器都必须同时持有一个 `Motion` 和一个 `Loc`。因此，构造顺序必须是：
 
 1. 先构造 `Motion`
@@ -162,10 +173,13 @@
 因此在正常接入里，应优先使能最上层 `Controller`，而不是在业务层重复逐个使能下层对象。对当前实现而言：
 
 - `Controller::enable()` 会继续调用 `Motion::enable()`
+- `Controller::acquireControl()` / `releaseControl()` 只做控制权交接，不改变底盘使能状态
 - `Motion::enable()` 又会继续把使能传递到更底层的轮组或电机控制器
 - `Loc` 一般不承担独立 enable 语义，它主要负责状态反馈
 
 也就是说，当你已经把底盘当成一个高级控制器使用时，通常不需要再额外手动对 `Motion` 或更底层轮控重复执行 `enable()`。
+
+如果同一套 `Motion + Loc` 下同时构造了多个 Controller，那么同一时刻只允许一个 Controller 持有控制权。旧控制器即使周期函数还在继续运行，只要已经失去控制权，也无法再通过基类 `applyVelocity()` 把速度写入到底盘。
 
 同样地，Controller 层也不强制规定统一的基类更新函数。像 `Master` 会拆成 `profileUpdate()`、`errorUpdate()`、
 `controllerUpdate()`，`Slave` 则会拆成 `trajectoryUpdate()`、`errorUpdate()`。这些入口本来就是为不同控制节拍服务的，因此应由用户自行调度，而不是依赖某个统一的基类
@@ -235,6 +249,12 @@
 - 当上层直接持有 `Controller` 时，推荐只调用 `Controller::enable()`
 - 不需要在正常流程里再手动对 `Motion` 或更底层轮速/舵向控制器重复执行 `enable()`
 - 重复使能虽然在某些实现里未必立即出错，但会破坏“底盘作为高级控制器统一接入”的语义边界
+
+关于运行期控制权交接，再补充一点：
+
+- 若底盘已经处于使能状态，而你只想在 `Master` / `Slave` 等控制模式之间切换，应优先使用 `acquireControl()` / `releaseControl()`
+- 推荐交接顺序是：旧控制器 `stop()` -> 旧控制器 `releaseControl()` -> 新控制器 `acquireControl()` -> 新控制器写入新目标
+- 这样底盘执行器可以持续保持使能，只切换“谁有权向底盘下发速度”
 
 关于更新调用，再强调一次：
 
@@ -341,7 +361,6 @@ void OnFirstLocReadyEvent(ChassisHandles& handles)
     handles.controller = &controller;
 
     handles.controller->enable();
-    handles.controller->stop();
 }
 
 void ChassisFastLoop(ChassisHandles& handles, float dt_s)
@@ -377,11 +396,23 @@ void MoveForwardHalfMeter(ChassisHandles& handles)
 }
 ```
 
-如果要切换为别的实现，优先替换构造阶段对象即可：
+如果要永久切换为别的实现，优先替换构造阶段对象即可：
 
 - 换底盘结构：替换 `Mecanum4` 为 `Omni4` 或 `Steering4`
 - 换定位后端：替换 `JustEncoder` 为 `LocEKF`
 - 换控制方式：替换 `Master` 为 `Slave`
+
+如果只是想在运行期于同一套 `Motion + Loc` 上切换控制模式，则不需要重建底层对象。做法是保留原有 `Motion` 和 `Loc`，只交接 Controller 控制权：
+
+```cpp
+void SwitchController(chassis::controller::IChassisController& from,
+                      chassis::controller::IChassisController& to)
+{
+    from.stop();
+    from.releaseControl();
+    to.acquireControl();
+}
+```
 
 若改为 `Steering4` 或
 `LocEKF`，还需要补上各自子目录 README 中描述的专项初始化和周期调用要求，见 [Chassis/Steering4/README.md](Chassis/Steering4/README.md) 和 [Localization/EKF/README.md](Localization/EKF/README.md)。
