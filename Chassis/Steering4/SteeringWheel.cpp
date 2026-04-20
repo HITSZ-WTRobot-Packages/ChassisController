@@ -83,8 +83,8 @@ void SteeringWheel::photogateTrigger()
 
 SteeringWheel::Velocity SteeringWheel::toBestVelocity(Velocity velocity) const
 {
-    uint32_t round         = 0;                 // 当前角度对应的圈数（整圈计数）
-    float    current_angle = target_vel_.angle; // 当前角度（可能大于360°或小于0°）
+    int32_t round         = 0;                 // 当前角度对应的圈数（整圈计数）
+    float   current_angle = target_vel_.angle; // 当前角度（可能大于360°或小于0°）
 
     /* 角度归一化，将当前角度调整到 [0, 360) 范围内，同时记录整圈数量 */
     while (current_angle > 360.0f)
