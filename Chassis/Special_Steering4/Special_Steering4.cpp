@@ -23,18 +23,18 @@ Special_Steering4::Special_Steering4(const Config& cfg) :
                             (1e-3f * cfg.distance_y / 2.0f + 1e-3f * y_shift_))),
     spd2rpm_(1.0f / (wheel_radius_ * 3.14159265358979323846f * 2) * 60.0f),
     wheel_{
-            steering::Special_SteeringWheel(cfg.wheel_front_right.cfg,
+            steering::Special_SteeringWheel(cfg.wheel_front.cfg,
                                             cfg.enable_calibration,
-                                            cfg.wheel_front_right.calib_cfg),
-            steering::Special_SteeringWheel(cfg.wheel_front_left.cfg,
+                                            cfg.wheel_front.calib_cfg),
+            steering::Special_SteeringWheel(cfg.wheel_left.cfg,
                                             cfg.enable_calibration,
-                                            cfg.wheel_front_left.calib_cfg),
-            steering::Special_SteeringWheel(cfg.wheel_rear_left.cfg,
+                                            cfg.wheel_left.calib_cfg),
+            steering::Special_SteeringWheel(cfg.wheel_rear.cfg,
                                             cfg.enable_calibration,
-                                            cfg.wheel_rear_left.calib_cfg),
-            steering::Special_SteeringWheel(cfg.wheel_rear_right.cfg,
+                                            cfg.wheel_rear.calib_cfg),
+            steering::Special_SteeringWheel(cfg.wheel_right.cfg,
                                             cfg.enable_calibration,
-                                            cfg.wheel_rear_right.calib_cfg),
+                                            cfg.wheel_right.calib_cfg),
     }
 {
 }

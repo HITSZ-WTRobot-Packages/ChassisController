@@ -37,10 +37,10 @@ public:
             steering::Special_SteeringWheel::CalibrationConfig calib_cfg;
         };
 
-        Wheel wheel_front_right;
-        Wheel wheel_front_left;
-        Wheel wheel_rear_left;
-        Wheel wheel_rear_right;
+        Wheel wheel_front;
+        Wheel wheel_left;
+        Wheel wheel_rear;
+        Wheel wheel_right;
     };
 
     struct KinematicParam
@@ -94,9 +94,9 @@ public:
     [[nodiscard]] KinematicParam kinematicParam() const
     {
         return {
-            1e3f * distance_x_,
-            1e3f * distance_y_,
-            1e3f * y_shift_,
+                1e3f * distance_x_,
+                1e3f * distance_y_,
+                1e3f * y_shift_,
         };
     }
 
@@ -114,16 +114,16 @@ private:
 
     [[nodiscard]] WheelPosition getWheelPosition(WheelType wheel) const;
 
-    bool enabled_{ false };
+    bool enabled_{false};
     bool enable_calib_;
-    bool calibrated_{ false };
+    bool calibrated_{false};
 
     float wheel_radius_;
     float distance_x_;
     float distance_y_;
     float half_distance_x_;
     float half_distance_y_;
-    float y_shift_{ 0.0f };
+    float y_shift_{0.0f};
     float inv_l2_;
     float spd2rpm_;
 
