@@ -10,6 +10,7 @@
 
 #define RPS2RPM(__RPS__) ((__RPS__) * 60.0f / (2.0f * 3.14159265358979323846f))
 #define DEG2RAD(__DEG__) ((__DEG__) * (float)3.14159265358979323846f / 180.0f)
+#define RAD2DEG(__RAD__) ((__RAD__) * 180.0f / (float)3.14159265358979323846f)
 #define RPM2DPS(__RPM__) ((__RPM__) / 60.0f * 360.0f)
 
 namespace chassis::motion
@@ -92,6 +93,8 @@ void Omni4::update()
         w->update();
 }
 
+
+
 Velocity Omni4::forwardGetVelocity()
 {
     Velocity vel{};
@@ -101,17 +104,12 @@ Velocity Omni4::forwardGetVelocity()
     const float w_fl = wheel_[idx(WheelType::FrontLeft)]->getMotor()->getVelocity();
     const float w_rl = wheel_[idx(WheelType::RearLeft)]->getMotor()->getVelocity();
     const float w_rr = wheel_[idx(WheelType::RearRight)]->getMotor()->getVelocity();
-
-    vel.vx = RPM2DPS(wheel_radius_ * 0.25f * 1.4142135623730951f *
-                     DEG2RAD(w_fr - w_fl - w_rl + w_rr));
-    vel.vy = RPM2DPS(wheel_radius_ * 0.25f * 1.4142135623730951f *
-                     DEG2RAD(w_fr + w_fl - w_rl - w_rr));
-
+   
+    vel.vx =(w_fr-w_fl-w_rl+w_rr)/60.0f*2.0f*3.1415926f*wheel_radius_*0.25f * 1.4142135623730951f;
+    vel.vy = (w_fr+w_fl-w_rl-w_rr)/60.0f*2.0f*3.1415926f*wheel_radius_*0.25f * 1.4142135623730951f;
     if (half_diag_ > 1e-6f)
     {
-        // 对角线过小时角速度解算会数值不稳定，这里显式防守。
-        vel.wz = RPM2DPS(-(wheel_radius_ / (4.0f * half_diag_)) *
-                         DEG2RAD(w_fr + w_fl + w_rl + w_rr));
+        vel.wz = RAD2DEG((w_fr+w_fl+w_rl+w_rr)/60.0f*2.0f*3.1415926f*wheel_radius_/(4.0f*half_diag_));
     }
     else
     {
