@@ -39,7 +39,7 @@
 
 ## 构造参数
 
-`LocEKF::Config` 对应内部 `PositionEKF::Config`，包括：
+`LocEKF<StateBufferCapacity, InputBufferCapacity>::Config` 对应内部 `PositionEKF::Config`，包括：
 
 - `x_init`：初始状态
 - `covP`：初始协方差
@@ -98,8 +98,8 @@
 
 当前实现里有两组缓冲：
 
-- `state_buffer_`：最多保存 512 个历史状态点
-- `input_buffer_`：暂存还没推进进 EKF 的输入，容量 4
+- `state_buffer_`：保存历史状态点，容量由模板参数 `StateBufferCapacity` 决定
+- `input_buffer_`：暂存还没推进进 EKF 的输入，容量由模板参数 `InputBufferCapacity` 决定，默认 4
 
 当 `updateLidar()` 收到一个旧时间戳观测时：
 
@@ -109,6 +109,14 @@
 4. 对回退点之后的历史输入重新执行一次 odom + gyro 更新
 
 如果外部观测太早，早到超出 `state_buffer_` 可回溯范围，当前实现会直接丢弃该观测。
+
+如果不同工程的回放窗口需求和 RAM 预算不同，可以在接入侧改用不同容量实例，例如：
+
+```cpp
+using MyLocEKF = chassis::loc::LocEKF<128>;
+```
+
+这会把历史状态缓冲缩小到 128 个点。当前项目里若继续保持现有行为，可以显式实例化 `LocEKF<512>`。
 
 ## 对外输出语义
 

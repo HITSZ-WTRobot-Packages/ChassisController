@@ -429,7 +429,7 @@ void SwitchController(chassis::controller::IChassisController& from,
 进入子目录 README 的情况：
 
 - 使用 `Steering4`，需要知道校准流程、就绪条件和舵向优化行为，见 [Chassis/Steering4/README.md](Chassis/Steering4/README.md)
-- 使用 `LocEKF`，需要知道时间戳要求、状态回放和观测输入边界，见 [Localization/EKF/README.md](Localization/EKF/README.md)
+- 使用 `LocEKF<...>`，需要知道时间戳要求、状态回放，以及历史缓冲容量如何在工程侧权衡 RAM 占用，见 [Localization/EKF/README.md](Localization/EKF/README.md)
 - 使用 `Master` 或
   `Slave`，需要知道各自周期接口应该如何分工调用，见 [Controller/Master/README.md](Controller/Master/README.md) 和 [Controller/Slave/README.md](Controller/Slave/README.md)
 
