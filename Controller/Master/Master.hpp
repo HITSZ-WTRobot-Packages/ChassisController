@@ -291,6 +291,11 @@ public:
         return posture_trajectory_.now >= posture_trajectory_.total_time;
     }
 
+    [[nodiscard]] CtrlMode controlMode() const
+    {
+        return ctrl_mode_;
+    }
+
     /// 阻塞等待当前位姿轨迹执行完成。常用于流程式脚本控制。
     void waitTrajectoryFinish() const
     {
