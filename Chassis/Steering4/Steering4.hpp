@@ -73,6 +73,8 @@ public:
         enabled_ = false;
     }
 
+    [[nodiscard]] bool enabled() const override { return enabled_; }
+
     /**
      * 启动四个轮组的校准流程。
      *

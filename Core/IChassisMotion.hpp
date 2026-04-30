@@ -38,7 +38,7 @@ public:
     /// 关闭底层执行器。
     virtual void               disable() = 0;
     /// 查询底层执行器是否已经处于使能状态。
-    [[nodiscard]] virtual bool enabled() const { return false; }
+    [[nodiscard]] virtual bool enabled() const = 0;
 
     /**
      * 是否就位
@@ -47,7 +47,7 @@ public:
      * 已经可以被当成完整底盘使用。像舵轮校准、机构变形、自检这类过程，
      * 都可能出现“enabled 但 not-ready”。
      */
-    [[nodiscard]] virtual bool isReady() const { return false; }
+    [[nodiscard]] virtual bool isReady() const = 0;
 
     /// 正向解算得到当前底盘在车体坐标系下的反馈速度。
     virtual Velocity forwardGetVelocity() = 0;
