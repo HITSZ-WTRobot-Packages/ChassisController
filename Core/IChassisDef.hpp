@@ -20,6 +20,8 @@ struct Velocity
     float vx; ///< 指向车体前方 (unit: m/s)
     float vy; ///< 指向车体左侧 (unit: m/s)
     float wz; ///< 向上（逆时针）为正 (unit: deg/s)
+
+    static constexpr Velocity zero() { return { 0, 0, 0 }; }
 };
 
 /**
@@ -32,5 +34,7 @@ struct Posture
     float x;   ///< 指向车体前方 (unit: m)
     float y;   ///< 指向车体左侧 (unit: m)
     float yaw; ///< 向上（逆时针）为正 (unit: deg)
+
+    static constexpr Posture zero() { return { 0, 0, 0 }; }
 };
 } // namespace chassis
