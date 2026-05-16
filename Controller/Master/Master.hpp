@@ -42,7 +42,15 @@ public:
         AxisLimit x, y, yaw;
     };
 
-    /// 控制器配置：误差 PD 参数 + 轨迹曲线限制。
+    /// 位姿轨迹跟踪 / 完成判定阈值。
+    struct TrajectoryTrackingThreshold
+    {
+        float x{ 0.01f };  ///< x 方向允许误差 (unit: m)
+        float y{ 0.01f };  ///< y 方向允许误差 (unit: m)
+        float yaw{ 0.5f }; ///< yaw 方向允许误差 (unit: deg)
+    };
+
+    /// 控制器配置：误差 PD 参数 + 轨迹曲线限制 + 完成判定阈值。
     struct Config
     {
         struct
@@ -53,6 +61,8 @@ public:
         } posture_error_pd_cfg;
 
         TrajectoryLimit limit{};
+
+        TrajectoryTrackingThreshold tracking_threshold{};
     };
 
     enum class CtrlMode
@@ -76,6 +86,7 @@ public:
     /// 构造时立即建立三个轴各自的 PD 与 S 曲线对象。
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
         IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
+        tracking_threshold_(cfg.tracking_threshold),
         posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
                                         MITPD(cfg.posture_error_pd_cfg.vy),
                                         MITPD(cfg.posture_error_pd_cfg.wz) },
@@ -288,13 +299,29 @@ public:
 
     [[nodiscard]] bool isTrajectoryFinished() const
     {
-        return posture_trajectory_.now >= posture_trajectory_.total_time;
+        return posture_trajectory_.now >= posture_trajectory_.total_time &&
+               isTrajectoryTrackingWithinThreshold();
     }
 
-    [[nodiscard]] CtrlMode controlMode() const
+    /// 当前位姿是否跟随在曲线当前目标的阈值范围内。
+    [[nodiscard]] bool isTrajectoryTrackingWithinThreshold() const
     {
-        return ctrl_mode_;
+        if (ctrl_mode_ != CtrlMode::Posture)
+            return true;
+
+        const auto [x, y, yaw] = postureInWorld();
+        const Posture target{
+            .x   = posture_trajectory_.curve.x.CalcX(posture_trajectory_.now),
+            .y   = posture_trajectory_.curve.y.CalcX(posture_trajectory_.now),
+            .yaw = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now),
+        };
+
+        return std::fabs(x - target.x) <= tracking_threshold_.x &&
+               std::fabs(y - target.y) <= tracking_threshold_.y &&
+               std::fabs(yaw - target.yaw) <= tracking_threshold_.yaw;
     }
+
+    [[nodiscard]] CtrlMode controlMode() const { return ctrl_mode_; }
 
     /// 阻塞等待当前位姿轨迹执行完成。常用于流程式脚本控制。
     void waitTrajectoryFinish() const
@@ -313,7 +340,8 @@ public:
      * @param world_velocity 目标世界系速度
      * @param target_in_world true 表示后续控制周期中都保持“世界系速度不变”，并在每次执行时
      *                        重新换算到车体系；平移和旋转并存时通常表现为边平移边自旋
-     *                        false 表示只在设置时做一次换算，后续按车体系速度保持；此时常见表现是圆弧轨迹
+     *                        false 表示只在设置时做一次换算，后续按车体系速度保持；
+     *                        此时常见表现是圆弧轨迹
      */
     void setVelocityInWorld(const Velocity& world_velocity, const bool target_in_world)
     {
@@ -468,6 +496,8 @@ private:
     CtrlMode ctrl_mode_{ CtrlMode::Stopped }; ///< 当前控制模式
 
     TrajectoryLimit limit_; ///< 默认轨迹约束
+
+    TrajectoryTrackingThreshold tracking_threshold_; ///< 轨迹跟踪 / 完成判定阈值
 
     struct
     {

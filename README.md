@@ -353,6 +353,11 @@ void OnFirstLocReadyEvent(ChassisHandles& handles)
             .y   = { .max_spd = 1.5f, .max_acc = 3.0f, .max_jerk = 20.0f },
             .yaw = { .max_spd = 180.0f, .max_acc = 360.0f, .max_jerk = 1800.0f },
         },
+        .tracking_threshold = {
+            .x   = 0.01f,
+            .y   = 0.01f,
+            .yaw = 0.5f,
+        },
     };
 
     static chassis::controller::Master controller(*handles.motion, loc, master_cfg);
