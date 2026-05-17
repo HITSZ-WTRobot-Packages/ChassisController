@@ -40,6 +40,15 @@ public:
     struct TrajectoryLimit
     {
         AxisLimit x, y, yaw;
+
+        constexpr TrajectoryLimit operator*(const float ratio) const
+        {
+            return { x * ratio, y * ratio, yaw * ratio };
+        }
+        constexpr TrajectoryLimit operator/(const float factor) const
+        {
+            return { x / factor, y / factor, yaw / factor };
+        }
     };
 
     /// 位姿轨迹跟踪 / 完成判定阈值。
