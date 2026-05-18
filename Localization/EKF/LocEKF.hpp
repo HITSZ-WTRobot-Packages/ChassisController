@@ -218,7 +218,8 @@ private:
         math::Mat<float, 1, 1> R_gyro_;
         math::Mat<float, 3, 3> R_lidar_;
     };
-    PositionEKF pos_ekf_; ///< 真正执行滤波计算的内部对象
+    typename PositionEKF::Config cfg_{};
+    PositionEKF                  pos_ekf_; ///< 真正执行滤波计算的内部对象
 
 private:
     struct Input
@@ -385,6 +386,22 @@ public:
             updateLoc();
     }
 
+    /// 外部源切换时使用指定世界系位姿重置状态，并重置协方差与历史缓冲。
+    void resetToPosture(const Posture& posture_in_world, const float cov_scale = 1.0f)
+    {
+        AtomicFlagGuard guard(lock_);
+        const float     gyro_yaw = gyro_.getYaw();
+        const typename PositionEKF::VecS state = { posture_in_world.x,
+                                                   posture_in_world.y,
+                                                   gyro_yaw,
+                                                   posture_in_world.yaw - gyro_yaw };
+        const auto cov = cfg_.covP.mat() * cov_scale;
+        pos_ekf_.reset(state, cov);
+        state_buffer_.clear();
+        input_buffer_.clear();
+        updateLoc();
+    }
+
     /**
      * @param motion       作为里程计输入来源的 Motion
      * @param cfg          滤波配置
@@ -398,7 +415,7 @@ public:
            const Config&            cfg,
            sensors::gyro::HWT101CT& gyro,
            const uint32_t           delta_ticks = 1) :
-        IChassisLoc(motion), gyro_(gyro), pos_ekf_(cfg), dticks_(delta_ticks)
+        IChassisLoc(motion), gyro_(gyro), cfg_(cfg), pos_ekf_(cfg), dticks_(delta_ticks)
     {
     }
 
