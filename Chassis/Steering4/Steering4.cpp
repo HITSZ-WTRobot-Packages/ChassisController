@@ -49,8 +49,8 @@ void Steering4::applyVelocity(const Velocity& velocity)
         // 刚体平面运动中，轮心速度 = 底盘平移速度 + 角速度带来的切向速度。
         const float vxi       = velocity.vx - wz_rad * yi;
         const float vyi       = velocity.vy + wz_rad * xi;
-        const float speed_rpm = spd2rpm_ * std::hypot(vxi, vyi);
-        if (fabsf(speed_rpm) < 1e-6f)
+        const float speed = std::hypot(vxi, vyi);
+        if (fabsf(speed) < 0.05f)
         {
             // 速度为零，无须转向
             wheel_[i].setTargetVelocity({
@@ -62,7 +62,7 @@ void Steering4::applyVelocity(const Velocity& velocity)
         {
             // atan2 给出轮子应该朝向的平面角度，具体是否翻轮由 SteeringWheel 再优化。
             const float angle = RAD2DEG(atan2f(vyi, vxi));
-            wheel_[i].setTargetVelocity({ angle, speed_rpm });
+            wheel_[i].setTargetVelocity({ angle, spd2rpm_ * speed });
         }
     }
 }
@@ -95,7 +95,7 @@ void Steering4::update()
         }
         velocity_.vx = 0.25f * vx;
         velocity_.vy = 0.25f * vy;
-        velocity_.wz = RAD2DEG(inv_l2_ * wz);
+        velocity_.wz = 0.25f * RAD2DEG(inv_l2_ * wz);
     }
 
     for (auto& w : wheel_)
