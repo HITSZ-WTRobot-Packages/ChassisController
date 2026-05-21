@@ -90,7 +90,7 @@ public:
         PreviousCurve, // 使用上一条轨迹在 now 时刻的位置 / 速度 / 加速度
     };
 
-    static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::CurrentState;
+    static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::PreviousCurve;
 
     /// 构造时立即建立三个轴各自的 PD 与 S 曲线对象。
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
