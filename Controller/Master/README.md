@@ -99,13 +99,18 @@
 
 ## 规划与限幅
 
-`Master::Config` 由三部分组成：
+`Master::Config` 主要包含：
 
 - `posture_error_pd_cfg`：世界坐标系下 `vx` / `vy` / `wz` 的误差闭环参数
 - `limit`：三轴各自的 S 曲线速度、加速度等限制
 - `tracking_threshold`：轨迹跟踪和完成判定允许的位姿误差阈值，默认 `x/y = 0.01m`、`yaw = 0.5deg`
+- `auto_nearest_yaw_target`：设置位姿目标时，是否把目标 yaw 转换为相对本次规划起点最近的等效连续角，默认开启
 
 位姿轨迹规划在三轴上独立生成，再用总时间最长的轴作为整体持续时间。这样可以保证 `x`、`y`、`yaw` 三条曲线同时结束。
+`Master` 内部仍然使用连续 yaw 角；最短弧处理只发生在设置新目标、生成 yaw 轴 S 曲线之前。例如本次规划起点 yaw 为
+`179deg`，目标传入 `-179deg` 时，会先转换成等效的 `181deg`，因此 yaw 轴只规划约 `+2deg`。如果需要保留调用方传入的原始
+yaw 终点，可将 `auto_nearest_yaw_target` 设为 `false`。
+
 `isTrajectoryTrackingWithinThreshold()` 可实时判断当前位置与曲线当前目标的误差是否进入 `tracking_threshold`；
 `isTrajectoryFinished()` 会在此基础上额外要求规划时间已经结束。
 
