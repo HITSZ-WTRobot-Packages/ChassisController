@@ -5,6 +5,7 @@
  * @brief   ChassisController 对外统一使用的基础运动学数据结构。
  */
 #pragma once
+#include <cmath>
 namespace chassis
 {
 /**
@@ -36,5 +37,23 @@ struct Posture
     float yaw; ///< 向上（逆时针）为正 (unit: deg)
 
     static constexpr Posture zero() { return { 0, 0, 0 }; }
+
+    constexpr Posture operator+(const Posture& rhs) const
+    {
+        return { x + rhs.x, y + rhs.y, yaw + rhs.yaw };
+    }
+
+    constexpr Posture operator-(const Posture& rhs) const
+    {
+        return { x - rhs.x, y - rhs.y, yaw - rhs.yaw };
+    }
+
+    /// 返回 current 相对 target 的最小等效 yaw 误差，单位 deg。
+    static float yawError(const float current, const float target)
+    {
+        const float diff  = current - target;
+        const float turns = diff / 360.0f;
+        return diff - std::round(turns) * 360.0f;
+    }
 };
 } // namespace chassis
