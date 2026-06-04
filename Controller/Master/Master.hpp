@@ -72,6 +72,9 @@ public:
         TrajectoryLimit limit{};
 
         TrajectoryTrackingThreshold tracking_threshold{};
+
+        /// 设置位姿目标时，是否把目标 yaw 转换为相对本次规划起点最近的等效连续角。
+        bool auto_nearest_yaw_target{ true };
     };
 
     enum class CtrlMode
@@ -96,6 +99,7 @@ public:
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
         IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
         tracking_threshold_(cfg.tracking_threshold),
+        auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target),
         posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
                                         MITPD(cfg.posture_error_pd_cfg.vy),
                                         MITPD(cfg.posture_error_pd_cfg.wz) },
@@ -178,10 +182,14 @@ public:
         clamp_vel_acc(vy, ay, limit_y);
         clamp_vel_acc(wz, ayaw, limit_yaw);
 
+        Posture target = absolute_target;
+        if (auto_nearest_yaw_target_)
+            target.yaw = nearestEquivalentYaw(yaw, absolute_target.yaw);
+
         const velocity_profile::SCurveProfile //
-                curve_x(limit_x, x, vx, ax, absolute_target.x),
-                curve_y(limit_y, y, vy, ay, absolute_target.y),
-                curve_yaw(limit_yaw, yaw, wz, ayaw, absolute_target.yaw);
+                curve_x(limit_x, x, vx, ax, target.x),
+                curve_y(limit_y, y, vy, ay, target.y),
+                curve_yaw(limit_yaw, yaw, wz, ayaw, target.yaw);
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
@@ -508,6 +516,8 @@ private:
 
     TrajectoryTrackingThreshold tracking_threshold_; ///< 轨迹跟踪 / 完成判定阈值
 
+    bool auto_nearest_yaw_target_{ true }; ///< 设置目标时是否自动选择最近等效 yaw
+
     struct
     {
         volatile bool target_in_world; ///< 速度是否相对于世界坐标系不变
@@ -539,6 +549,15 @@ private:
     } posture_trajectory_;
 
 private:
+    [[nodiscard]] static float nearestEquivalentYaw(const float reference_yaw,
+                                                    const float target_yaw)
+    {
+        const float turns = (reference_yaw - target_yaw) / 360.0f;
+        const int   round = turns >= 0.0f ? static_cast<int>(turns + 0.5f) :
+                                            static_cast<int>(turns - 0.5f);
+        return target_yaw + static_cast<float>(round) * 360.0f;
+    }
+
     void update_velocity_control()
     {
         if (velocity_ref_.target_in_world)
