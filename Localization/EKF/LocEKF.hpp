@@ -131,6 +131,21 @@ private:
                     }
                 } lidar;
             } noiseR;
+
+            struct
+            {
+                struct
+                {
+                    float scale{ 1.0f };
+                    float offset{ 0.0f };
+                } x;
+
+                struct
+                {
+                    float scale{ 1.0f };
+                    float offset{ 0.0f };
+                } y;
+            } linear_compensation;
         };
 
         explicit PositionEKF(const Config& cfg) :
@@ -219,14 +234,15 @@ private:
         math::Mat<float, 3, 3> R_lidar_;
     };
     PositionEKF pos_ekf_; ///< 真正执行滤波计算的内部对象
+    Config      cfg_;
 
 private:
     struct Input
     {
         uint32_t ticks{ HAL_GetTick() }; ///< 输入对应的时间戳；默认来自本地
                                          ///< tick，若外部观测参与回放，工程侧需先把时间基准对齐
-        Velocity vel{};                  ///< 该时刻的里程计预测输入
-        float    yaw_gyro{};             ///< 该时刻的陀螺仪 yaw 观测
+        Velocity vel{};      ///< 该时刻的里程计预测输入
+        float    yaw_gyro{}; ///< 该时刻的陀螺仪 yaw 观测
     };
 
     struct StatePoint
@@ -239,7 +255,7 @@ private:
     };
 
     Deque<StatePoint, StateBufferCapacity> state_buffer_; ///< 历史状态，用于处理晚到观测回放
-    Deque<Input, InputBufferCapacity>      input_buffer_; ///< 尚未推进进 EKF 的输入样本队列
+    Deque<Input, InputBufferCapacity> input_buffer_; ///< 尚未推进进 EKF 的输入样本队列
 
     uint32_t dticks_{ 1 }; ///< 相邻 update 之间的 tick 间隔
 
@@ -284,10 +300,14 @@ private:
     {
         const auto s = pos_ekf_.state();
 
-        const auto nxt = next_idx();
+        const auto  nxt           = next_idx();
+        const float compensated_x = s[0] * cfg_.linear_compensation.x.scale +
+                                    cfg_.linear_compensation.x.offset;
+        const float compensated_y = s[1] * cfg_.linear_compensation.y.scale +
+                                    cfg_.linear_compensation.y.offset;
 
         // 对外暴露的 yaw = 主状态 yaw + 为兼容外部绝对观测而估计出的 yaw_offset。
-        posture_[nxt] = { { s[0], s[1], s[2] + s[3] } };
+        posture_[nxt] = { { compensated_x, compensated_y, s[2] + s[3] } };
 
         const auto [vx, vy, wz] = forwardGetVelocity();
         (void)wz;
@@ -398,7 +418,7 @@ public:
            const Config&            cfg,
            sensors::gyro::HWT101CT& gyro,
            const uint32_t           delta_ticks = 1) :
-        IChassisLoc(motion), gyro_(gyro), pos_ekf_(cfg), dticks_(delta_ticks)
+        IChassisLoc(motion), gyro_(gyro), pos_ekf_(cfg), cfg_(cfg), dticks_(delta_ticks)
     {
     }
 
