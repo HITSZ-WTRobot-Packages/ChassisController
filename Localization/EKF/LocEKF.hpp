@@ -234,7 +234,8 @@ private:
         math::Mat<float, 3, 3> R_lidar_;
     };
     PositionEKF pos_ekf_; ///< 真正执行滤波计算的内部对象
-    Config      cfg_;
+
+    typename PositionEKF::Config cfg_;
 
 private:
     struct Input
