@@ -156,7 +156,6 @@ private:
         {
             auto next                = x;
             const auto& [vx, vy, wz] = vel;
-            (void)wz;
 
             // 预测时使用当前估计的世界系朝向，把车体系速度展开到世界系。
             const auto yaw_w_rad = DEG2RAD(x[2] + x[3]);
@@ -165,6 +164,7 @@ private:
 
             next[0] += (vx * c - vy * s) * dt;
             next[1] += (vx * s + vy * c) * dt;
+            next[2] += wz * dt;
 
             // F 是状态转移对状态的雅可比矩阵，只对 yaw / yaw_offset 引起的位置变化做线性化。
             MatS F  = MatS::identity();
@@ -220,6 +220,9 @@ private:
     };
     PositionEKF pos_ekf_; ///< 真正执行滤波计算的内部对象
 
+    bool gyro_enabled_ = true;
+    bool lidar_enabled_ = true;
+
 private:
     struct Input
     {
@@ -270,7 +273,8 @@ private:
             // TODO: HAL 库有没有什么办法告诉我 tick 更新频率的
             pos_ekf_.odomUpdate(vel, dt());
             // 2. 更新陀螺仪观测
-            pos_ekf_.gyroUpdate(yaw);
+            if (gyro_enabled_)
+                pos_ekf_.gyroUpdate(yaw);
             // 保存状态历史。这里保存原始输入对应的 ticks，以便晚到观测按统一时间基准回放。
             state_buffer_.push_back({ .x     = pos_ekf_.state(),
                                       .P     = pos_ekf_.covariance(),
@@ -290,10 +294,9 @@ private:
         posture_[nxt] = { { s[0], s[1], s[2] + s[3] } };
 
         const auto [vx, vy, wz] = forwardGetVelocity();
-        (void)wz;
 
         // 角速度优先使用陀螺仪 wz，平移速度则继续使用 Motion 反馈。
-        velocity_[nxt].in_body = { vx, vy, gyro_.getWz() };
+        velocity_[nxt].in_body = { vx, vy, gyro_enabled_ ? gyro_.getWz() : wz };
 
         velocity_[nxt].in_world = rotateVelocity(velocity_[nxt].in_body,
                                                  posture_[nxt].in_world.yaw);
@@ -335,6 +338,9 @@ public:
      */
     void updateLidar(const Posture& pos, const uint32_t ticks)
     {
+        if (!lidar_enabled_)
+            return;
+
         // 锁定更新状态, 此处假定 updateEKF 由中断调用，本身不会被打断。
         AtomicFlagGuard guard(lock_);
         // 注意：这里不会做上下位机对时。调用方传入的 ticks 必须已经是统一时间基准，
@@ -384,6 +390,11 @@ public:
         else
             updateLoc();
     }
+
+    void setGyroEnabled(const bool enabled) { gyro_enabled_ = enabled; }
+    void setLidarEnabled(const bool enabled) { lidar_enabled_ = enabled; }
+    [[nodiscard]] bool isGyroEnabled() const { return gyro_enabled_; }
+    [[nodiscard]] bool isLidarEnabled() const { return lidar_enabled_; }
 
     /**
      * @param motion       作为里程计输入来源的 Motion
