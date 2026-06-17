@@ -335,7 +335,7 @@ public:
 
         return std::fabs(x - target.x) <= tracking_threshold_.x &&
                std::fabs(y - target.y) <= tracking_threshold_.y &&
-               std::fabs(yaw - target.yaw) <= tracking_threshold_.yaw;
+               std::fabs(Posture::yawError(yaw, target.yaw)) <= tracking_threshold_.yaw;
     }
 
     [[nodiscard]] CtrlMode controlMode() const { return ctrl_mode_; }
