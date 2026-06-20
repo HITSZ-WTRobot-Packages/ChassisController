@@ -44,13 +44,13 @@ void Steering4::applyVelocity(const Velocity& velocity)
         return;
     for (size_t i = 0; i < static_cast<size_t>(WheelType::Max); ++i)
     {
-        const auto [xi, yi]   = getWheelPosition(static_cast<WheelType>(i));
-        const float wz_rad    = DEG2RAD(velocity.wz);
+        const auto [xi, yi] = getWheelPosition(static_cast<WheelType>(i));
+        const float wz_rad  = DEG2RAD(velocity.wz);
         // 刚体平面运动中，轮心速度 = 底盘平移速度 + 角速度带来的切向速度。
-        const float vxi       = velocity.vx - wz_rad * yi;
-        const float vyi       = velocity.vy + wz_rad * xi;
+        const float vxi   = velocity.vx - wz_rad * yi;
+        const float vyi   = velocity.vy + wz_rad * xi;
         const float speed = std::hypot(vxi, vyi);
-        if (speed < 0.05f)
+        if (speed < 0.1f)
         {
             // 速度为零，无须转向
             wheel_[i].setTargetVelocity({
