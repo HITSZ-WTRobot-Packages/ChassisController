@@ -6,7 +6,6 @@ target_include_directories(__Chassis_Core INTERFACE
 
 # link dependencies if any
 target_link_libraries(__Chassis_Core INTERFACE FreeRTOS)
-target_link_libraries(__Chassis_Core INTERFACE libs::MIT_PD)
 target_link_libraries(__Chassis_Core INTERFACE MotorDrivers::Controller)
 
 # alias for external use

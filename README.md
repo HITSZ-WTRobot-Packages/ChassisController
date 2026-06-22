@@ -289,7 +289,7 @@
 | `LocEKF`                           | `update()`                | 采样编码器速度与陀螺仪，推进滤波器  | 固定周期调用，周期需与构造参数 `delta_ticks` 对齐  |
 | `LocEKF`                           | `updateLidar(pos, ticks)` | 注入外部定位观测，并在必要时回放状态 | 在外部定位数据到达时调用；调用前先由接入工程把时间戳对齐到统一时基 |
 | `Master`                           | `profileUpdate(dt_s)`     | 推进 S 曲线轨迹          | 源码注释建议约 `100Hz`                   |
-| `Master`                           | `errorUpdate()`           | 基于当前位置和目标做 PD 跟踪   | 源码注释建议约 `200~500Hz`               |
+| `Master`                           | `errorUpdate()`           | 基于当前位置和目标做普通 PD 跟踪 | 源码注释建议约 `200~500Hz`               |
 | `Master`                           | `controllerUpdate()`      | 处理纯速度模式下的控制下发      | 放在控制快环中                           |
 | `Slave`                            | `trajectoryUpdate()`      | 从缓冲区取出下一个轨迹点       | 与上位机轨迹点消费节奏一致                     |
 | `Slave`                            | `errorUpdate()`           | 在车体坐标系下跟踪当前轨迹点     | 放在控制快环中                           |

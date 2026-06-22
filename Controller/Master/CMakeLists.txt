@@ -7,6 +7,7 @@ target_include_directories(__Chassis_ControllerMaster INTERFACE
 # link dependencies if any
 target_link_libraries(__Chassis_ControllerMaster INTERFACE Chassis::Core)
 target_link_libraries(__Chassis_ControllerMaster INTERFACE VelocityProfile::SCurve)
+target_link_libraries(__Chassis_ControllerMaster INTERFACE libs::PID_PD)
 
 # alias for external use
 add_library(Chassis::ControllerMaster ALIAS __Chassis_ControllerMaster)

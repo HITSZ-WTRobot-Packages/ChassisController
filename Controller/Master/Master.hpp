@@ -8,7 +8,7 @@
 #include "IChassisController.hpp"
 #include "isr_lock.h"
 #include "s_curve.hpp"
-#include "mit_pd.hpp"
+#include "pid_pd.hpp"
 #include "cmsis_os2.h"
 
 #include <algorithm>
@@ -64,9 +64,9 @@ public:
     {
         struct
         {
-            MITPD::Config vx; ///< x 速度 PD 控制器
-            MITPD::Config vy; ///< y 速度 PD 控制器
-            MITPD::Config wz; ///< 角速度 PD 控制器
+            PD::Config vx; ///< x 速度 PD 控制器
+            PD::Config vy; ///< y 速度 PD 控制器
+            PD::Config wz; ///< 角速度 PD 控制器
         } posture_error_pd_cfg;
 
         TrajectoryLimit limit{};
@@ -100,9 +100,9 @@ public:
         IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
         tracking_threshold_(cfg.tracking_threshold),
         auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target),
-        posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
-                                        MITPD(cfg.posture_error_pd_cfg.vy),
-                                        MITPD(cfg.posture_error_pd_cfg.wz) },
+        posture_trajectory_{ .pd    = { PD(cfg.posture_error_pd_cfg.vx),
+                                        PD(cfg.posture_error_pd_cfg.vy),
+                                        PD(cfg.posture_error_pd_cfg.wz) },
                              .curve = { velocity_profile::SCurveProfile(cfg.limit.x, 0, 0, 0, 0),
                                         velocity_profile::SCurveProfile(cfg.limit.y, 0, 0, 0, 0),
                                         velocity_profile::SCurveProfile(cfg.limit.yaw, 0, 0, 0, 0) }
@@ -470,19 +470,12 @@ public:
             !(ctrl_mode_ == CtrlMode::Posture || ctrl_mode_ == CtrlMode::Stopped))
             return;
 
+        const auto [x, y, yaw] = postureInWorld();
+
         // 使用 pd 控制器跟随当前目标
-        posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x,
-                                       postureInWorld().x,
-                                       posture_trajectory_.v_ref_curr_.vx,
-                                       velocityInWorld().vx);
-        posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y,
-                                       postureInWorld().y,
-                                       posture_trajectory_.v_ref_curr_.vy,
-                                       velocityInWorld().vy);
-        posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw,
-                                       postureInWorld().yaw,
-                                       posture_trajectory_.v_ref_curr_.wz,
-                                       velocityInWorld().wz);
+        posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x, x);
+        posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y, y);
+        posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw, yaw);
         apply_position_velocity();
     }
 
@@ -532,9 +525,9 @@ private:
 
         struct
         {
-            MITPD vx; ///< x 速度 PD 控制器
-            MITPD vy; ///< y 速度 PD 控制器
-            MITPD wz; ///< 角速度 PD 控制器
+            PD vx; ///< x 速度 PD 控制器
+            PD vy; ///< y 速度 PD 控制器
+            PD wz; ///< 角速度 PD 控制器
         } pd;
 
         struct
@@ -553,8 +546,8 @@ private:
                                                     const float target_yaw)
     {
         const float turns = (reference_yaw - target_yaw) / 360.0f;
-        const int   round = turns >= 0.0f ? static_cast<int>(turns + 0.5f) :
-                                            static_cast<int>(turns - 0.5f);
+        const int   round = turns >= 0.0f ? static_cast<int>(turns + 0.5f)
+                                          : static_cast<int>(turns - 0.5f);
         return target_yaw + static_cast<float>(round) * 360.0f;
     }
 
