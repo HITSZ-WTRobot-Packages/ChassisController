@@ -6,6 +6,7 @@ target_include_directories(__Chassis_ControllerSlave INTERFACE
 
 # link dependencies if any
 target_link_libraries(__Chassis_ControllerSlave INTERFACE Chassis::Core)
+target_link_libraries(__Chassis_ControllerSlave INTERFACE libs::MIT_PD)
 target_link_libraries(__Chassis_ControllerSlave INTERFACE libs::RingBuffer)
 
 # alias for external use

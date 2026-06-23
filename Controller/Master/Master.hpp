@@ -8,7 +8,7 @@
 #include "IChassisController.hpp"
 #include "isr_lock.h"
 #include "s_curve.hpp"
-#include "mit_pd.hpp"
+#include "pid_pd.hpp"
 #include "cmsis_os2.h"
 
 #include <algorithm>
@@ -40,19 +40,41 @@ public:
     struct TrajectoryLimit
     {
         AxisLimit x, y, yaw;
+
+        constexpr TrajectoryLimit operator*(const float ratio) const
+        {
+            return { x * ratio, y * ratio, yaw * ratio };
+        }
+        constexpr TrajectoryLimit operator/(const float factor) const
+        {
+            return { x / factor, y / factor, yaw / factor };
+        }
     };
 
-    /// 控制器配置：误差 PD 参数 + 轨迹曲线限制。
+    /// 位姿轨迹跟踪 / 完成判定阈值。
+    struct TrajectoryTrackingThreshold
+    {
+        float x{ 0.01f };  ///< x 方向允许误差 (unit: m)
+        float y{ 0.01f };  ///< y 方向允许误差 (unit: m)
+        float yaw{ 0.5f }; ///< yaw 方向允许误差 (unit: deg)
+    };
+
+    /// 控制器配置：误差 PD 参数 + 轨迹曲线限制 + 完成判定阈值。
     struct Config
     {
         struct
         {
-            MITPD::Config vx; ///< x 速度 PD 控制器
-            MITPD::Config vy; ///< y 速度 PD 控制器
-            MITPD::Config wz; ///< 角速度 PD 控制器
+            PD::Config vx; ///< x 速度 PD 控制器
+            PD::Config vy; ///< y 速度 PD 控制器
+            PD::Config wz; ///< 角速度 PD 控制器
         } posture_error_pd_cfg;
 
         TrajectoryLimit limit{};
+
+        TrajectoryTrackingThreshold tracking_threshold{};
+
+        /// 设置位姿目标时，是否把目标 yaw 转换为相对本次规划起点最近的等效连续角。
+        bool auto_nearest_yaw_target{ true };
     };
 
     enum class CtrlMode
@@ -71,14 +93,16 @@ public:
         PreviousCurve, // 使用上一条轨迹在 now 时刻的位置 / 速度 / 加速度
     };
 
-    static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::CurrentState;
+    static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::PreviousCurve;
 
     /// 构造时立即建立三个轴各自的 PD 与 S 曲线对象。
     Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
         IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
-        posture_trajectory_{ .pd    = { MITPD(cfg.posture_error_pd_cfg.vx),
-                                        MITPD(cfg.posture_error_pd_cfg.vy),
-                                        MITPD(cfg.posture_error_pd_cfg.wz) },
+        tracking_threshold_(cfg.tracking_threshold),
+        auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target),
+        posture_trajectory_{ .pd    = { PD(cfg.posture_error_pd_cfg.vx),
+                                        PD(cfg.posture_error_pd_cfg.vy),
+                                        PD(cfg.posture_error_pd_cfg.wz) },
                              .curve = { velocity_profile::SCurveProfile(cfg.limit.x, 0, 0, 0, 0),
                                         velocity_profile::SCurveProfile(cfg.limit.y, 0, 0, 0, 0),
                                         velocity_profile::SCurveProfile(cfg.limit.yaw, 0, 0, 0, 0) }
@@ -158,10 +182,14 @@ public:
         clamp_vel_acc(vy, ay, limit_y);
         clamp_vel_acc(wz, ayaw, limit_yaw);
 
+        Posture target = absolute_target;
+        if (auto_nearest_yaw_target_)
+            target.yaw = nearestEquivalentYaw(yaw, absolute_target.yaw);
+
         const velocity_profile::SCurveProfile //
-                curve_x(limit_x, x, vx, ax, absolute_target.x),
-                curve_y(limit_y, y, vy, ay, absolute_target.y),
-                curve_yaw(limit_yaw, yaw, wz, ayaw, absolute_target.yaw);
+                curve_x(limit_x, x, vx, ax, target.x),
+                curve_y(limit_y, y, vy, ay, target.y),
+                curve_yaw(limit_yaw, yaw, wz, ayaw, target.yaw);
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
@@ -288,13 +316,29 @@ public:
 
     [[nodiscard]] bool isTrajectoryFinished() const
     {
-        return posture_trajectory_.now >= posture_trajectory_.total_time;
+        return posture_trajectory_.now >= posture_trajectory_.total_time &&
+               isTrajectoryTrackingWithinThreshold();
     }
 
-    [[nodiscard]] CtrlMode controlMode() const
+    /// 当前位姿是否跟随在曲线当前目标的阈值范围内。
+    [[nodiscard]] bool isTrajectoryTrackingWithinThreshold() const
     {
-        return ctrl_mode_;
+        if (ctrl_mode_ != CtrlMode::Posture)
+            return true;
+
+        const auto [x, y, yaw] = postureInWorld();
+        const Posture target{
+            .x   = posture_trajectory_.curve.x.CalcX(posture_trajectory_.now),
+            .y   = posture_trajectory_.curve.y.CalcX(posture_trajectory_.now),
+            .yaw = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now),
+        };
+
+        return std::fabs(x - target.x) <= tracking_threshold_.x &&
+               std::fabs(y - target.y) <= tracking_threshold_.y &&
+               std::fabs(Posture::yawError(yaw, target.yaw)) <= tracking_threshold_.yaw;
     }
+
+    [[nodiscard]] CtrlMode controlMode() const { return ctrl_mode_; }
 
     /// 阻塞等待当前位姿轨迹执行完成。常用于流程式脚本控制。
     void waitTrajectoryFinish() const
@@ -313,7 +357,8 @@ public:
      * @param world_velocity 目标世界系速度
      * @param target_in_world true 表示后续控制周期中都保持“世界系速度不变”，并在每次执行时
      *                        重新换算到车体系；平移和旋转并存时通常表现为边平移边自旋
-     *                        false 表示只在设置时做一次换算，后续按车体系速度保持；此时常见表现是圆弧轨迹
+     *                        false 表示只在设置时做一次换算，后续按车体系速度保持；
+     *                        此时常见表现是圆弧轨迹
      */
     void setVelocityInWorld(const Velocity& world_velocity, const bool target_in_world)
     {
@@ -425,19 +470,12 @@ public:
             !(ctrl_mode_ == CtrlMode::Posture || ctrl_mode_ == CtrlMode::Stopped))
             return;
 
+        const auto [x, y, yaw] = postureInWorld();
+
         // 使用 pd 控制器跟随当前目标
-        posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x,
-                                       postureInWorld().x,
-                                       posture_trajectory_.v_ref_curr_.vx,
-                                       velocityInWorld().vx);
-        posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y,
-                                       postureInWorld().y,
-                                       posture_trajectory_.v_ref_curr_.vy,
-                                       velocityInWorld().vy);
-        posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw,
-                                       postureInWorld().yaw,
-                                       posture_trajectory_.v_ref_curr_.wz,
-                                       velocityInWorld().wz);
+        posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x, x);
+        posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y, y);
+        posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw, yaw);
         apply_position_velocity();
     }
 
@@ -469,6 +507,10 @@ private:
 
     TrajectoryLimit limit_; ///< 默认轨迹约束
 
+    TrajectoryTrackingThreshold tracking_threshold_; ///< 轨迹跟踪 / 完成判定阈值
+
+    bool auto_nearest_yaw_target_{ true }; ///< 设置目标时是否自动选择最近等效 yaw
+
     struct
     {
         volatile bool target_in_world; ///< 速度是否相对于世界坐标系不变
@@ -483,9 +525,9 @@ private:
 
         struct
         {
-            MITPD vx; ///< x 速度 PD 控制器
-            MITPD vy; ///< y 速度 PD 控制器
-            MITPD wz; ///< 角速度 PD 控制器
+            PD vx; ///< x 速度 PD 控制器
+            PD vy; ///< y 速度 PD 控制器
+            PD wz; ///< 角速度 PD 控制器
         } pd;
 
         struct
@@ -500,6 +542,15 @@ private:
     } posture_trajectory_;
 
 private:
+    [[nodiscard]] static float nearestEquivalentYaw(const float reference_yaw,
+                                                    const float target_yaw)
+    {
+        const float turns = (reference_yaw - target_yaw) / 360.0f;
+        const int   round = turns >= 0.0f ? static_cast<int>(turns + 0.5f)
+                                          : static_cast<int>(turns - 0.5f);
+        return target_yaw + static_cast<float>(round) * 360.0f;
+    }
+
     void update_velocity_control()
     {
         if (velocity_ref_.target_in_world)

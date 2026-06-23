@@ -1,4 +1,5 @@
+format_version = 1
 name = "ControllerMaster"
 pkgname = "Chassis::ControllerMaster"
 version = "0.1.0"
-dependencies = ["Chassis::Core", "VelocityProfile::SCurve"]
+dependencies = ["Chassis::Core", "VelocityProfile::SCurve", "libs::PID_PD"]
