@@ -12,7 +12,9 @@
 #include "cmsis_os2.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace chassis::controller
 {
@@ -35,6 +37,7 @@ class Master : public IChassisController
 {
 public:
     using AxisLimit = velocity_profile::SCurveProfile::Config;
+    using SCurveFailureInfo = velocity_profile::SCurveProfile::FailureInfo;
 
     /// 三个自由度各自的运动学约束。
     struct TrajectoryLimit
@@ -91,6 +94,13 @@ public:
     {
         CurrentState,  // 使用当前估计的位姿 / 速度，加速度置零
         PreviousCurve, // 使用上一条轨迹在 now 时刻的位置 / 速度 / 加速度
+    };
+
+    struct SCurveFailureRecord
+    {
+        bool valid{ false };
+        uint8_t axis_mask{ 0 };
+        std::array<SCurveFailureInfo, 3> axis{};
     };
 
     static constexpr auto defaultTrajectoryLinkMode = TrajectoryLinkMode::PreviousCurve;
@@ -193,6 +203,23 @@ public:
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
+            last_scurve_failure_ = {};
+            last_scurve_failure_.valid = true;
+            if (!curve_x.success())
+            {
+                last_scurve_failure_.axis_mask |= 1U << 0U;
+                last_scurve_failure_.axis[0] = curve_x.failureInfo();
+            }
+            if (!curve_y.success())
+            {
+                last_scurve_failure_.axis_mask |= 1U << 1U;
+                last_scurve_failure_.axis[1] = curve_y.failureInfo();
+            }
+            if (!curve_yaw.success())
+            {
+                last_scurve_failure_.axis_mask |= 1U << 2U;
+                last_scurve_failure_.axis[2] = curve_yaw.failureInfo();
+            }
             osMutexRelease(lock_);
             return false;
         }
@@ -339,6 +366,11 @@ public:
     }
 
     [[nodiscard]] CtrlMode controlMode() const { return ctrl_mode_; }
+
+    [[nodiscard]] const SCurveFailureRecord& lastSCurveFailure() const
+    {
+        return last_scurve_failure_;
+    }
 
     /// 阻塞等待当前位姿轨迹执行完成。常用于流程式脚本控制。
     void waitTrajectoryFinish() const
@@ -510,6 +542,8 @@ private:
     TrajectoryTrackingThreshold tracking_threshold_; ///< 轨迹跟踪 / 完成判定阈值
 
     bool auto_nearest_yaw_target_{ true }; ///< 设置目标时是否自动选择最近等效 yaw
+
+    SCurveFailureRecord last_scurve_failure_{};
 
     struct
     {
