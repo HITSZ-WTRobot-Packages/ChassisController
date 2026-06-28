@@ -2,4 +2,4 @@ format_version = 1
 name = "ControllerSlave"
 pkgname = "Chassis::ControllerSlave"
 version = "0.1.0"
-dependencies = ["Chassis::Core", "libs::MIT_PD", "libs::RingBuffer"]
+dependencies = ["Chassis::Core", "libs::PID_PD", "libs::RingBuffer"]

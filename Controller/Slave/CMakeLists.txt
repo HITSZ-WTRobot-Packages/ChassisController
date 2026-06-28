@@ -1,12 +1,12 @@
 add_library(__Chassis_ControllerSlave INTERFACE)
 
 target_include_directories(__Chassis_ControllerSlave INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/
 )
 
 # link dependencies if any
 target_link_libraries(__Chassis_ControllerSlave INTERFACE Chassis::Core)
-target_link_libraries(__Chassis_ControllerSlave INTERFACE libs::MIT_PD)
+target_link_libraries(__Chassis_ControllerSlave INTERFACE libs::PID_PD)
 target_link_libraries(__Chassis_ControllerSlave INTERFACE libs::RingBuffer)
 
 # alias for external use
