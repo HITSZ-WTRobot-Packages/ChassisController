@@ -69,7 +69,7 @@ public:
      *
      * 该接口只负责从缓冲区取点，不做误差闭环；真正的跟踪在 errorUpdate() 中完成。
      */
-    template <typename = std::enable_if_t<!Offline>>
+    template <bool B = !Offline, typename = std::enable_if_t<B>>
     void trajectoryUpdate()
     {
         if (!enabled())
@@ -90,7 +90,7 @@ public:
      *
      * @param point 外部生成的轨迹点
      */
-    template <typename = std::enable_if_t<Offline>>
+    template <bool B = Offline, typename = std::enable_if_t<B>>
     void profileUpdate(const TrajectoryPoint& point)
     {
         p_ref_ = point.p_ref;
@@ -139,7 +139,7 @@ public:
      * @param point 轨迹点
      * @return true 表示成功入队；false 表示缓冲区已满，轨迹点未写入
      */
-    template <typename = std::enable_if_t<!Offline>>
+    template <bool B = !Offline, typename = std::enable_if_t<B>>
     bool pushTrajectoryPoint(const TrajectoryPoint& point)
     {
         const uint32_t saved = isr_lock();
