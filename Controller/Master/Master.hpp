@@ -36,7 +36,7 @@ namespace chassis::controller
 class Master : public IChassisController
 {
 public:
-    using AxisLimit = velocity_profile::SCurveProfile::Config;
+    using AxisLimit         = velocity_profile::SCurveProfile::Config;
     using SCurveFailureInfo = velocity_profile::SCurveProfile::FailureInfo;
 
     /// 三个自由度各自的运动学约束。
@@ -98,8 +98,9 @@ public:
 
     struct SCurveFailureRecord
     {
-        bool valid{ false };
+        bool    valid{ false };
         uint8_t axis_mask{ 0 };
+
         std::array<SCurveFailureInfo, 3> axis{};
     };
 
@@ -203,7 +204,7 @@ public:
 
         if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
         {
-            last_scurve_failure_ = {};
+            last_scurve_failure_       = {};
             last_scurve_failure_.valid = true;
             if (!curve_x.success())
             {
@@ -343,7 +344,8 @@ public:
 
     [[nodiscard]] bool isTrajectoryFinished() const
     {
-        return posture_trajectory_.now >= posture_trajectory_.total_time &&
+        return ctrl_mode_ == CtrlMode::Posture &&
+               posture_trajectory_.now >= posture_trajectory_.total_time &&
                isTrajectoryTrackingWithinThreshold();
     }
 
@@ -461,6 +463,11 @@ public:
         isr_unlock(saved);
         osMutexRelease(lock_);
     }
+
+    /**
+     * 设置底盘速度为 0
+     */
+    void hold() { setVelocityInBody(Velocity::zero(), false); }
 
     /**
      * 更新底盘轨迹规划曲线
