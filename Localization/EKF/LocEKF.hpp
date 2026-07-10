@@ -396,6 +396,16 @@ public:
     [[nodiscard]] bool isGyroEnabled() const { return gyro_enabled_; }
     [[nodiscard]] bool isLidarEnabled() const { return lidar_enabled_; }
 
+    /// 用新的初始状态和协方差重置 EKF，并丢弃旧的回放历史。
+    void resetState(const Config& cfg)
+    {
+        AtomicFlagGuard guard(lock_);
+        input_buffer_.clear();
+        state_buffer_.clear();
+        pos_ekf_.reset(cfg.x_init.vec(), cfg.covP.mat());
+        updateLoc();
+    }
+
     /**
      * @param motion       作为里程计输入来源的 Motion
      * @param cfg          滤波配置
