@@ -17,7 +17,7 @@ Motion 只覆盖全向底盘的平面运动，升降、伸缩等独立自由度�
 
 ## 依赖与宿主责任
 
-依赖不是对某个消费工程的假设，也不因文档去项目化而消失：`Chassis::Core` 当前声明依赖 `FreeRTOS` 和 `MotorDrivers::Controller`，具体包还会引入 GPIO、曲线、PD、EKF、陀螺仪和容器等依赖，见各包说明与清单。Master / Slave 的实现直接使用 CMSIS-RTOS2 互斥量及中断锁；EKF 使用 `HAL_GetTick()`；Steering4 校准依赖 GPIO EXTI。这些是实际实现的集成要求，不能把接口分层理解成可直接替换 HAL、RTOS 或驱动的兼容保证。
+实际依赖由各包清单及实现决定：`Chassis::Core` 当前声明依赖 `FreeRTOS` 和 `MotorDrivers::Controller`，具体包还会引入 GPIO、曲线、PD、EKF、陀螺仪和容器等依赖，见各包说明与清单。Master / Slave 的实现直接使用 CMSIS-RTOS2 互斥量及中断锁；EKF 使用 `HAL_GetTick()`；Steering4 校准依赖 GPIO EXTI。这些是实际实现的集成要求，不能把接口分层理解成可直接替换 HAL、RTOS 或驱动的兼容保证。
 
 宿主负责底层设备对象、CubeMX 静态硬件配置、时间基准和周期调度。硬件配置的专项限制见包文档；库不会因被接入就自动创建任务或修复宿主配置。本仓库没有面向所有 STM32 系列的统一兼容性或运行验证承诺。
 
