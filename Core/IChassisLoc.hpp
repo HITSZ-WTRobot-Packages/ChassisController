@@ -43,7 +43,7 @@ public:
     virtual ~IChassisLoc() = default;
 
     /// 返回车体坐标系速度。
-    [[nodiscard]] virtual Velocity velocityInBody() const  = 0;
+    [[nodiscard]] virtual Velocity velocityInBody() const = 0;
     /// 返回世界坐标系速度。
     [[nodiscard]] virtual Velocity velocityInWorld() const = 0;
 
@@ -51,85 +51,37 @@ public:
     [[nodiscard]] virtual Posture postureInWorld() const = 0;
 
     /// 使用当前朝向，把世界系速度转换为车体系速度。
-    [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const
-    {
-        return rotateVelocity(velocity_in_world, -postureInWorld().yaw);
-    }
+    [[nodiscard]] Velocity WorldVelocity2BodyVelocity(const Velocity& velocity_in_world) const;
 
     /// 使用当前朝向，把车体系速度转换为世界系速度。
-    [[nodiscard]] Velocity BodyVelocity2WorldVelocity(const Velocity& velocity_in_body) const
-    {
-        return rotateVelocity(velocity_in_body, postureInWorld().yaw);
-    }
+    [[nodiscard]] Velocity BodyVelocity2WorldVelocity(const Velocity& velocity_in_body) const;
+
+    /// 使用当前朝向，把世界系加速度转换为车体系加速度。
+    [[nodiscard]] Acceleration WorldAcceleration2BodyAcceleration(
+            const Acceleration& acceleration_in_world) const;
+
+    /// 使用当前朝向，把车体系加速度转换为世界系加速度。
+    [[nodiscard]] Acceleration BodyAcceleration2WorldAcceleration(
+            const Acceleration& acceleration_in_body) const;
 
     /// 把世界系位姿换算成“以当前车体为参考”的相对位姿。
-    [[nodiscard]] Posture WorldPosture2BodyPosture(const Posture& posture_in_world) const
-    {
-        const float _sin_yaw = sinf(DEG2RAD(-postureInWorld().yaw)),
-                    _cos_yaw = cosf(DEG2RAD(-postureInWorld().yaw));
-
-        const float tx = posture_in_world.x - postureInWorld().x;
-        const float ty = posture_in_world.y - postureInWorld().y;
-
-        const Posture posture_in_body = {
-            .x   = tx * _cos_yaw - ty * _sin_yaw,
-            .y   = tx * _sin_yaw + ty * _cos_yaw,
-            .yaw = posture_in_world.yaw - postureInWorld().yaw,
-        };
-
-        return posture_in_body;
-    }
+    [[nodiscard]] Posture WorldPosture2BodyPosture(const Posture& posture_in_world) const;
 
     /// 把“相对当前车体”的位姿换算回世界系。
-    [[nodiscard]] Posture BodyPosture2WorldPosture(const Posture& posture_in_body) const
-    {
-        const float sin_yaw            = sinf(DEG2RAD(postureInWorld().yaw)),
-                    cos_yaw            = cosf(DEG2RAD(postureInWorld().yaw));
-        const Posture posture_in_world = {
-            .x   = posture_in_body.x * cos_yaw - posture_in_body.y * sin_yaw + postureInWorld().x,
-            .y   = posture_in_body.x * sin_yaw + posture_in_body.y * cos_yaw + postureInWorld().y,
-            .yaw = posture_in_body.yaw + postureInWorld().yaw,
-        };
-
-        return posture_in_world;
-    }
+    [[nodiscard]] Posture BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
     /// 已知某个基准位姿在世界系中的位置，把“相对基准”的位姿展开到世界系。
     [[nodiscard]] static Posture RelativePosture2WorldPosture(const Posture& base_in_world,
-                                                              const Posture& posture_in_base)
-    {
-        const float sin_yaw = sinf(DEG2RAD(base_in_world.yaw));
-        const float cos_yaw = cosf(DEG2RAD(base_in_world.yaw));
-
-        return {
-            .x   = posture_in_base.x * cos_yaw - posture_in_base.y * sin_yaw + base_in_world.x,
-            .y   = posture_in_base.x * sin_yaw + posture_in_base.y * cos_yaw + base_in_world.y,
-            .yaw = posture_in_base.yaw + base_in_world.yaw,
-        };
-    }
+                                                              const Posture& posture_in_base);
 
     /// 已知某个基准位姿在世界系中的位置，把世界系位姿改写成“相对基准”的位姿。
     [[nodiscard]] static Posture WorldPosture2RelativePosture(const Posture& base_in_world,
-                                                              const Posture& posture_in_world)
-    {
-        const float sin_yaw = sinf(DEG2RAD(-base_in_world.yaw));
-        const float cos_yaw = cosf(DEG2RAD(-base_in_world.yaw));
-
-        const float tx = posture_in_world.x - base_in_world.x;
-        const float ty = posture_in_world.y - base_in_world.y;
-
-        return {
-            .x   = tx * cos_yaw - ty * sin_yaw,
-            .y   = tx * sin_yaw + ty * cos_yaw,
-            .yaw = posture_in_world.yaw - base_in_world.yaw,
-        };
-    }
+                                                              const Posture& posture_in_world);
 
     /// 便捷函数：计算“当前位置相对于某个世界系基准位姿”的相对位姿。
-    [[nodiscard]] Posture CurrentPostureRelativeTo(const Posture& base_in_world) const
-    {
-        return WorldPosture2RelativePosture(base_in_world, postureInWorld());
-    }
+    [[nodiscard]] Posture CurrentPostureRelativeTo(const Posture& base_in_world) const;
+
+    [[nodiscard]] Reference ReferenceInBody(const Reference& reference_in_world) const;
 
 protected:
     motion::IChassisMotion* motion_{ nullptr }; ///< Loc 读取速度反馈所依赖的 Motion
@@ -138,18 +90,9 @@ protected:
     [[nodiscard]] auto forwardGetVelocity() const { return motion_->forwardGetVelocity(); }
 
     /// 二维平面旋转速度向量。角度单位仍是度，内部会转换成弧度。
-    [[nodiscard]] static Velocity rotateVelocity(const Velocity& inp, const float theta)
-    {
-        const float sin_yaw = sinf(DEG2RAD(theta)), cos_yaw = cosf(DEG2RAD(theta));
+    [[nodiscard]] static Velocity rotateVelocity(const Velocity& inp, float theta);
 
-        const Velocity out = {
-            .vx = inp.vx * cos_yaw - inp.vy * sin_yaw,
-            .vy = inp.vx * sin_yaw + inp.vy * cos_yaw,
-            .wz = inp.wz,
-        };
-
-        return out;
-    }
+    [[nodiscard]] static Acceleration rotateAcceleration(const Acceleration& inp, float theta);
 };
 
 } // namespace chassis::loc

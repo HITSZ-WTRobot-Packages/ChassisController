@@ -56,4 +56,25 @@ struct Posture
         return diff - std::round(turns) * 360.0f;
     }
 };
+
+/**
+ * 平面物理加速度及角加速度。
+ *
+ * ax/ay 是加速度向量在指定坐标系中的表达，不是旋转车体系速度分量的直接导数。
+ */
+struct Acceleration
+{
+    float ax;    ///< x 方向加速度 (unit: m/s^2)
+    float ay;    ///< y 方向加速度 (unit: m/s^2)
+    float alpha; ///< 逆时针角加速度 (unit: deg/s^2)
+
+    static constexpr Acceleration zero() { return { 0, 0, 0 }; }
+};
+
+struct Reference
+{
+    Posture      posture;
+    Velocity     velocity;
+    Acceleration acceleration;
+};
 } // namespace chassis
