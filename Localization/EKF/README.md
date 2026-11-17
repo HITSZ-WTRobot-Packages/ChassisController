@@ -7,10 +7,10 @@
 ## 输入、坐标与输出
 
 - Motion 提供车体系速度；`HWT101CT` 提供 yaw / wz；`updateLidar(pos, ticks)` 接收外部世界系位姿，来源不限定于某种雷达或 SLAM。
-- 输入和输出位置使用 `m`、线速度使用 `m/s`、yaw 使用 `deg`、角速度使用 `deg/s`。外部观测不可直接混入 `rad`，世界系原点和朝向必须与初始状态一致。
-- `postureInWorld()` 输出融合位姿，其 yaw 包含估计的航向偏移；初值的 yaw 与 yaw_offset 共同决定对外朝向。
+- 输入和输出位置使用 `m`、线速度使用 `m/s`、yaw 使用 `deg`、角速度使用 `deg/s`。外部位姿通过 `Posture{x, y, yaw}` 构造时自动将 yaw 归一化到 `[-180, 180]`，构造后直接写 yaw 仍须自行保证范围；不可直接混入 `rad`，世界系原点和朝向必须与初始状态一致。
+- `postureInWorld()` 输出融合位姿，其 yaw 为 `Posture::smallestAngle(yaw + yaw_offset)`，包含估计的航向偏移；初值的 yaw 与 yaw_offset 共同决定对外朝向，`resetState(cfg)` 后也按此范围同步输出。
 - `velocityInBody()` 的平移速度来自 Motion，角速度在启用陀螺仪时来自陀螺仪，否则来自 Motion；`velocityInWorld()` 使用当前融合朝向旋转该速度。
-- 输出 yaw 使用连续角语义，不强制截断到 `[-180, 180]`；外部观测的 yaw 残差按最近等效角融合，不能用该后端保证累计旋转圈数。
+- 内部滤波状态可保留连续角，但所有 `Posture` 输出的 yaw 均为 `[-180, 180]`。陀螺仪与外部位姿的 yaw 创新均取“观测减预测”的劣弧差，恰好相差 180° 时保留原差值符号；输出不表示累计旋转角或圈数。
 
 ## 构造与初始状态
 

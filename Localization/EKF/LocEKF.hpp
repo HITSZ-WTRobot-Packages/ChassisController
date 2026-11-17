@@ -62,7 +62,7 @@ private:
     {
         // state: [x, y, yaw, yaw_offset]
         // x, y: m.
-        // yaw, yaw_offset: deg
+        // yaw, yaw_offset: deg，内部状态保留连续角；仅 Posture 输出折返到 [-180, 180]。
         // wz: deg/s
     public:
         using EKF::MatS;
@@ -181,7 +181,7 @@ private:
         {
             // gyro 只直接观测状态里的 yaw，本身不直接观测 yaw_offset。
             constexpr math::Mat<float, 1, 4> H{ { { 0, 0, 1, 0 } } };
-            update(math::Vec<float, 1>{ yaw - x[2] }, H, R_gyro_);
+            update(math::Vec<float, 1>{ Posture::yawError(yaw, x[2]) }, H, R_gyro_);
         }
 
         /// 用外部绝对位姿做一次量测更新。
@@ -194,22 +194,11 @@ private:
                         { 0, 0, 1, 1 },
                 },
             };
-            // 注意这里统一使用角度制，而不是弧度制。
-            // 连续化处理雷达的角度数据，使其单次误差不会超过 180deg。
-            constexpr auto wrap = [](float a)
-            {
-                while (a > 180)
-                    a -= 360;
-                while (a <= -180)
-                    a += 360;
-
-                return a;
-            };
-
+            // 观测减预测取劣弧创新；内部 yaw / yaw_offset 仍保持连续角语义。
             const math::Vec3f y{
                 pos.x - x[0],
                 pos.y - x[1],
-                wrap(pos.yaw - x[2] - x[3]),
+                Posture::yawError(pos.yaw, x[2] + x[3]),
             };
             update(y, H, R_lidar_);
         }
@@ -290,7 +279,7 @@ private:
 
         const auto nxt = next_idx();
 
-        // 对外暴露的 yaw = 主状态 yaw + 为兼容外部绝对观测而估计出的 yaw_offset。
+        // 对外 yaw 包含估计偏移，只有转换为 Posture 时才折返，内部状态不受影响。
         posture_[nxt] = { { s[0], s[1], s[2] + s[3] } };
 
         const auto [vx, vy, wz] = forwardGetVelocity();

@@ -29,9 +29,19 @@ public:
     // 公共接口转发，方便上层通过 Controller 直接访问常用状态。
     [[nodiscard]] const auto& motion() const { return *motion_; }
     [[nodiscard]] const auto& loc() const { return *loc_; }
-    [[nodiscard]] auto        velocityInBody() const { return loc_->velocityInBody(); }
-    [[nodiscard]] auto        velocityInWorld() const { return loc_->velocityInWorld(); }
-    [[nodiscard]] auto        postureInWorld() const { return loc_->postureInWorld(); }
+
+    [[nodiscard]] auto velocityInBody() const { return loc_->velocityInBody(); }
+    [[nodiscard]] auto velocityInWorld() const { return loc_->velocityInWorld(); }
+    [[nodiscard]] auto postureInWorld() const { return loc_->postureInWorld(); }
+
+    /**
+     * 请求单独切换定位源，具体许可条件与参考迁移由派生控制器定义。
+     *
+     * 实现负责串行化状态写入，并在准备成功后共同提交参考状态和 Loc。
+     * 新旧 Loc 须已可用，使用同一 Motion/车体参考点及单位，body 运动估计基本一致。
+     * 宿主须在控制周期边界串行化定位更新、规划与控制更新；本函数不是 ISR 入口。
+     */
+    virtual void switchLoc(loc::IChassisLoc& next) = 0;
 
     /**
      * 申请底盘控制权并进入 stop 状态。
@@ -112,6 +122,13 @@ public:
      */
     virtual void stop() = 0;
 
+    /**
+     * 保持底盘
+     *
+     * hold 状态应当是控制 motion 保持静止，即速度环锁定状态
+     */
+    virtual void hold() = 0;
+
 protected:
     /// Controller 在构造时就必须绑定现成的 Motion 和 Loc。
     IChassisController(motion::IChassisMotion& chassis_motion, loc::IChassisLoc& chassis_loc) :
@@ -120,7 +137,7 @@ protected:
     }
 
     motion::IChassisMotion* motion_; ///< 真正执行底盘速度命令的运动学层
-    loc::IChassisLoc*       loc_;    ///< 提供底盘状态反馈的定位层
+    loc::IChassisLoc*       loc_;    ///< 当前激活的定位源
 
     // 保护接口转发，只允许当前持有控制权的控制器把速度命令传给 Motion。
     void applyVelocity(const Velocity& velocity)
