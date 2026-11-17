@@ -239,7 +239,7 @@ public:
      * 切换时重映射世界系锁定目标，使车体系相对目标 ref_b 瞬时不变；PD 历史不重置。
      * @param new_loc 新定位源，其生命周期必须覆盖后续使用期
      */
-    void switchLoc(loc::IChassisLoc& new_loc);
+    void switchLoc(loc::IChassisLoc& new_loc) override;
 
     /**
      * 设置底盘速度为 0
@@ -317,7 +317,7 @@ private:
 
     void update_velocity_control();
 
-    void apply_position_velocity(const Posture& current_pose);
+    void apply_position_velocity();
 };
 
 } // namespace chassis::controller

@@ -41,7 +41,7 @@ public:
      * 新旧 Loc 须已可用，使用同一 Motion/车体参考点及单位，body 运动估计基本一致。
      * 宿主须在控制周期边界串行化定位更新、规划与控制更新；本函数不是 ISR 入口。
      */
-    [[nodiscard]] virtual bool switchLoc(loc::IChassisLoc& next) = 0;
+    virtual void switchLoc(loc::IChassisLoc& next) = 0;
 
     /**
      * 申请底盘控制权并进入 stop 状态。

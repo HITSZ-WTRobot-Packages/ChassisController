@@ -305,14 +305,20 @@ void Master::switchLoc(loc::IChassisLoc& new_loc)
         stop_locked(old_pose);
     }
 
+    const Posture new_pose = new_loc.postureInWorld();
+
     const auto p_ref_b =
             loc::IChassisLoc::WorldPosture2RelativePosture(old_pose,
                                                            posture_trajectory_.p_ref_curr_);
-    const auto v_ref_b = loc::IChassisLoc::const Posture new_pose = new_loc.postureInWorld();
 
-    auto pref = loc::IChassisLoc::RelativePosture2WorldPosture(new_pose, ref_b);
+    const auto pref = loc::IChassisLoc::RelativePosture2WorldPosture(new_pose, p_ref_b);
 
-    loc_ = &new_loc;
+    {
+        ISRGuard guard{};
+        posture_trajectory_.p_ref_curr_ = pref;
+
+        loc_ = &new_loc;
+    }
 
     osMutexRelease(lock_);
 }
@@ -336,32 +342,29 @@ void Master::profileUpdate(const float dt)
                                               .wz = posture_trajectory_.curve.yaw.CalcV(now) };
 
     // 加速度与速度使用同一曲线时刻；系数在车体系中应用。
-    this->posture_trajectory_.a_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcA(now),
-                                              .y   = posture_trajectory_.curve.y.CalcA(now),
-                                              .yaw = posture_trajectory_.curve.yaw.CalcA(now) };
+    this->posture_trajectory_.a_ref_curr_ = { .ax    = posture_trajectory_.curve.x.CalcA(now),
+                                              .ay    = posture_trajectory_.curve.y.CalcA(now),
+                                              .alpha = posture_trajectory_.curve.yaw.CalcA(now) };
 
     // 计算当前目标
     this->posture_trajectory_.p_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcX(now),
                                               .y   = posture_trajectory_.curve.y.CalcX(now),
                                               .yaw = posture_trajectory_.curve.yaw.CalcX(now) };
 
-    apply_position_velocity(postureInWorld());
+    apply_position_velocity();
 }
 void Master::errorUpdate()
 {
     if (!this->enabled() || !(ctrl_mode_ == CtrlMode::Posture || ctrl_mode_ == CtrlMode::Stopped))
         return;
 
-    const Posture current_pose = postureInWorld();
-    const Posture ref_b =
-            loc::IChassisLoc::WorldPosture2RelativePosture(current_pose,
-                                                           posture_trajectory_.p_ref_curr_);
+    const auto [x, y, yaw] = loc().WorldPosture2BodyPosture(posture_trajectory_.p_ref_curr_);
 
     // 车体系相对目标对零反馈闭环；连续 yaw 差值不折返为最短角。
-    posture_trajectory_.pd.vx.calc(ref_b.x, 0.0f);
-    posture_trajectory_.pd.vy.calc(ref_b.y, 0.0f);
-    posture_trajectory_.pd.wz.calc(ref_b.yaw, 0.0f);
-    apply_position_velocity(current_pose);
+    posture_trajectory_.pd.vx.calc(x, 0.0f);
+    posture_trajectory_.pd.vy.calc(y, 0.0f);
+    posture_trajectory_.pd.wz.calc(yaw, 0.0f);
+    apply_position_velocity();
 }
 void Master::controllerUpdate()
 {
@@ -401,20 +404,18 @@ void Master::update_velocity_control()
     }
     applyVelocity(velocity_ref_.in_body);
 }
-void Master::apply_position_velocity(const Posture& current_pose)
+void Master::apply_position_velocity()
 {
-    const float sin_yaw = std::sin(DEG2RAD(-current_pose.yaw));
-    const float cos_yaw = std::cos(DEG2RAD(-current_pose.yaw));
-    const auto& v       = posture_trajectory_.v_ref_curr_;
-    const auto& a       = posture_trajectory_.a_ref_curr_;
+    const auto& v = posture_trajectory_.v_ref_curr_;
+    const auto& a = posture_trajectory_.a_ref_curr_;
+
+    const auto [vb, ab] = loc().VelocityAndAccelerationInBody(v, a);
 
     // 先把世界系 v/a 旋转到车体系，再分别叠加车体轴 PD 和 T * a_b。
     const Velocity body_velocity = {
-        .vx = v.vx * cos_yaw - v.vy * sin_yaw + posture_trajectory_.pd.vx.getOutput() +
-              accel_Tff.x * (a.x * cos_yaw - a.y * sin_yaw),
-        .vy = v.vx * sin_yaw + v.vy * cos_yaw + posture_trajectory_.pd.vy.getOutput() +
-              accel_Tff.y * (a.x * sin_yaw + a.y * cos_yaw),
-        .wz = v.wz + posture_trajectory_.pd.wz.getOutput() + accel_Tff.yaw * a.yaw,
+        .vx = vb.vx + posture_trajectory_.pd.vx.getOutput() + accel_Tff.x * ab.ax,
+        .vy = vb.vy + posture_trajectory_.pd.vy.getOutput() + accel_Tff.y * ab.ay,
+        .wz = vb.wz + posture_trajectory_.pd.wz.getOutput() + accel_Tff.yaw * ab.alpha,
     };
 
     applyVelocity(body_velocity);
