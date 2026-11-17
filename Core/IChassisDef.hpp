@@ -54,10 +54,18 @@ struct Posture
     {
         if (yaw >= -180.0f && yaw <= 180.0f)
             return yaw;
-        // 合法 Posture 的加减只需折返一次，也保留这些运算的常量求值能力。
-        while (yaw > 180.0f)
+
+        // 只跨一圈时直接加减，避免引入 fmod 调用开销。
+        if (yaw > 180.0f && yaw <= 540.0f)
+            return yaw - 360.0f;
+        if (yaw < -180.0f && yaw >= -540.0f)
+            return yaw + 360.0f;
+
+        // 超过一圈时交给 fmod；非有限输入按其语义得到 NaN。
+        yaw = std::fmod(yaw, 360.0f);
+        if (yaw > 180.0f)
             yaw -= 360.0f;
-        while (yaw < -180.0f)
+        else if (yaw < -180.0f)
             yaw += 360.0f;
         return yaw;
     }

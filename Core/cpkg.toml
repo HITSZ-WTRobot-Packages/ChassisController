@@ -6,4 +6,4 @@ dependencies = ["FreeRTOS", "MotorDrivers::Controller"]
 
 [compile]
 options = ["-Ofast"]
-defines = ["ARM_MATH_CM4"]
+#defines = ["ARM_MATH_CM4"]

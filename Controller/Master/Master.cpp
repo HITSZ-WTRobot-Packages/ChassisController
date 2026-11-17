@@ -10,8 +10,7 @@ namespace chassis::controller
 {
 Master::Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
     IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
-    tracking_threshold_(cfg.tracking_threshold),
-    auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target), accel_Tff(cfg.accel_Tff),
+    tracking_threshold_(cfg.tracking_threshold), accel_Tff(cfg.accel_Tff),
     posture_trajectory_{ .pd    = { PD(cfg.posture_error_pd_cfg.vx),
                                     PD(cfg.posture_error_pd_cfg.vy),
                                     PD(cfg.posture_error_pd_cfg.wz) },
@@ -27,7 +26,14 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
                                      const TrajectoryLimit&   limit)
 {
     osMutexAcquire(lock_, osWaitForever);
-
+    const bool result = planPostureInWorld_locked(absolute_target, link_mode, limit);
+    osMutexRelease(lock_);
+    return result;
+}
+bool Master::planPostureInWorld_locked(const Posture&           absolute_target,
+                                       const TrajectoryLinkMode link_mode,
+                                       const TrajectoryLimit&   limit)
+{
     const auto [limit_x, limit_y, limit_yaw] = limit;
 
     constexpr auto clamp_vel_acc = [&](float& v, float& a, const AxisLimit& l)
@@ -57,9 +63,9 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
         // 衔接之前的状态
 
         // copy 当前位置和速度
-        p = postureInWorld();
+        p   = postureInWorld();
         yaw = p.yaw;
-        v = velocityInWorld();
+        v   = velocityInWorld();
     }
     else
     {
@@ -115,7 +121,6 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
             last_scurve_failure_.axis_mask |= 1U << 2U;
             last_scurve_failure_.axis[2] = curve_yaw.failureInfo();
         }
-        osMutexRelease(lock_);
         return false;
     }
 
@@ -139,7 +144,6 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
 
     isr_unlock(saved);
 
-    osMutexRelease(lock_);
     return true;
 }
 bool Master::setTargetPostureInWorld(const Posture& absolute_target)
@@ -160,10 +164,11 @@ bool Master::setTargetPostureInBody(const Posture&           relative_target,
                                     const TrajectoryLimit&   limit)
 {
     osMutexAcquire(lock_, osWaitForever);
-    const auto absolute_target = this->loc().BodyPosture2WorldPosture(relative_target);
+    const auto absolute_target = loc_->BodyPosture2WorldPosture(relative_target);
+    const bool result          = planPostureInWorld_locked(absolute_target, link_mode, limit);
     osMutexRelease(lock_);
 
-    return setTargetPostureInWorld(absolute_target, link_mode, limit);
+    return result;
 }
 bool Master::setTargetPostureInBody(const Posture& relative_target)
 {
@@ -188,9 +193,10 @@ bool Master::setTargetPostureRelativeTo(const Posture&           base_in_world,
     osMutexAcquire(lock_, osWaitForever);
     const auto absolute_target = loc::IChassisLoc::RelativePosture2WorldPosture(base_in_world,
                                                                                 relative_target);
+    const bool result          = planPostureInWorld_locked(absolute_target, link_mode, limit);
     osMutexRelease(lock_);
 
-    return setTargetPostureInWorld(absolute_target, link_mode, limit);
+    return result;
 }
 bool Master::setTargetPostureRelativeTo(const Posture& base_in_world,
                                         const Posture& relative_target)
@@ -295,6 +301,10 @@ void Master::stop_locked(const Posture& current_pose)
     posture_trajectory_.p_ref_curr_ = current_pose;
     posture_trajectory_.v_ref_curr_ = {};
     posture_trajectory_.a_ref_curr_ = {};
+
+    posture_trajectory_.pd.vx.reset();
+    posture_trajectory_.pd.vy.reset();
+    posture_trajectory_.pd.wz.reset();
 }
 void Master::switchLoc(loc::IChassisLoc& new_loc)
 {

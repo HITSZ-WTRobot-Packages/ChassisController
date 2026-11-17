@@ -80,6 +80,7 @@ public:
             p_ref_   = point.p_ref;
             v_ref_   = point.v_ref;
             stopped_ = false;
+            holding_ = false;
         }
         isr_unlock(saved);
     }
@@ -94,10 +95,14 @@ public:
     template <bool B = Offline, typename = std::enable_if_t<B>>
     void profileUpdate(const TrajectoryPoint& point)
     {
+        if (!enabled())
+            return;
+
         const uint32_t saved = isr_lock();
         p_ref_               = point.p_ref;
         v_ref_               = point.v_ref;
         stopped_             = false;
+        holding_             = false;
         isr_unlock(saved);
     }
 
@@ -112,6 +117,13 @@ public:
     {
         if (!enabled())
             return;
+
+        if (holding_)
+        {
+            // hold 是速度环锁定，周期入口持续为零，不叠加位置 PD。
+            applyVelocity(Velocity::zero());
+            return;
+        }
 
         const auto [x, y, yaw] = loc_->WorldPosture2BodyPosture(p_ref_);
 
@@ -137,25 +149,69 @@ public:
         pd_vy_.reset();
         pd_wz_.reset();
 
+        holding_ = false;
+
         isr_unlock(saved);
         osMutexRelease(lock_);
     }
 
     /**
+     * 速度环锁定：清空待消费轨迹，周期入口持续下发零速度。
+     *
+     * 该状态不维持位置锁定；需要位置锁定时使用 stop()。
+     */
+    void hold() override
+    {
+        osMutexAcquire(lock_, osWaitForever);
+        const uint32_t saved = isr_lock();
+
+        clearTrajectory();
+        p_ref_   = loc_->postureInWorld();
+        v_ref_   = Velocity::zero();
+        stopped_ = true;
+        holding_ = true;
+
+        pd_vx_.reset();
+        pd_vy_.reset();
+        pd_wz_.reset();
+
+        isr_unlock(saved);
+        osMutexRelease(lock_);
+
+        applyVelocity(Velocity::zero());
+    }
+
+    /**
      * 切换定位源并进入停止状态，丢弃旧定位源世界系下的所有待消费轨迹。
      *
-     * 跟踪中先取消跟踪并锁定旧定位源的当前位置；已停止时保留锁定目标的
-     * 车体系相对位姿。迁移参考时不重置 PD 历史，避免定位坐标跳变引入误差突变。
+     * 跟踪中先取消跟踪并锁定旧定位源的当前位置，同时重置 PD 历史；
+     * 已停止时保留锁定目标的车体系相对位姿，不重置 PD。
+     * hold 状态下切换后继续保持速度环零速锁定。
      * 该接口与 stop() 通过互斥锁串行化；周期入口仍由调用方按 Core 契约串行化。
      */
     void switchLoc(loc::IChassisLoc& new_loc) override
     {
         osMutexAcquire(lock_, osWaitForever);
 
-        const Posture old_pose   = loc_->postureInWorld();
-        const Posture new_pose   = new_loc.postureInWorld();
-        const Posture locked_ref = stopped_ ? p_ref_ : old_pose;
-        const auto ref_body  = loc::IChassisLoc::WorldPosture2RelativePosture(old_pose, locked_ref);
+        const Posture old_pose     = loc_->postureInWorld();
+        const Posture new_pose     = new_loc.postureInWorld();
+        const bool    was_tracking = !stopped_;
+
+        if (holding_)
+        {
+            // hold 不依赖世界系目标，切换定位源后继续保持零速度锁定。
+            const uint32_t saved = isr_lock();
+            clearTrajectory();
+            v_ref_ = Velocity::zero();
+            loc_   = &new_loc;
+            isr_unlock(saved);
+
+            osMutexRelease(lock_);
+            return;
+        }
+
+        const Posture locked_ref = was_tracking ? old_pose : p_ref_;
+        const auto ref_body = loc::IChassisLoc::WorldPosture2RelativePosture(old_pose, locked_ref);
         const auto ref_world = loc::IChassisLoc::RelativePosture2WorldPosture(new_pose, ref_body);
 
         const uint32_t saved = isr_lock();
@@ -163,7 +219,14 @@ public:
         p_ref_   = ref_world;
         v_ref_   = Velocity::zero();
         stopped_ = true;
-        loc_     = &new_loc;
+        if (was_tracking)
+        {
+            // 取消跟踪时目标从轨迹点跳到当前位置，重置 PD 避免微分项冲击。
+            pd_vx_.reset();
+            pd_vy_.reset();
+            pd_wz_.reset();
+        }
+        loc_ = &new_loc;
         isr_unlock(saved);
 
         osMutexRelease(lock_);
@@ -205,6 +268,7 @@ private:
     Posture  p_ref_{};         ///< 当前跟踪或停止锁定的目标位姿（世界系）
     Velocity v_ref_{};         ///< 当前速度前馈（世界系，停止时清零）
     bool     stopped_{ true }; ///< 停止时跨定位源切换保留当前锁定目标的车体系相对位姿
+    bool     holding_{ false }; ///< 速度环锁定状态，周期入口下发零速度而非位置 PD
 
     /// 当 Offline = true 时替代 RingBuffer 的空占位类型。
     struct NoBuffer

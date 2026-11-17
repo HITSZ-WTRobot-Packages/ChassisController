@@ -233,7 +233,8 @@ public:
      *
      * 若处于 Velocity / Posture，先按 stop() 语义锁定旧定位的当前位姿并清零速度、
      * 加速度参考。已 Stopped 时保留已有锁定误差，不重新 stop。
-     * 切换时重映射世界系锁定目标，使车体系相对目标 ref_b 瞬时不变；PD 历史不重置。
+     * 切换时重映射世界系锁定目标，使车体系相对目标 ref_b 瞬时不变；
+     * 从非 Stopped 进入 Stopped 时重置 PD 历史，已 Stopped 时保留。
      * @param new_loc 新定位源，其生命周期必须覆盖后续使用期
      */
     void switchLoc(loc::IChassisLoc& new_loc) override;
@@ -307,7 +308,12 @@ private:
     } posture_trajectory_;
 
 private:
-    /// 调用者必须已持有 mutex 和中断锁；不重置 PD 历史。
+    /// 调用者必须已持有 mutex；不重复加锁。
+    bool planPostureInWorld_locked(const Posture&         absolute_target,
+                                   TrajectoryLinkMode     link_mode,
+                                   const TrajectoryLimit& limit);
+
+    /// 调用者必须已持有 mutex 和中断锁；重置 PD 历史。
     void stop_locked(const Posture& current_pose);
 
     void update_velocity_control();
