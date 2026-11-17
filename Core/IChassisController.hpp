@@ -116,16 +116,16 @@ public:
     }
 
     /**
-     * 锁定底盘
+     * 静止底盘
      *
      * stop 状态应当是控制 motion 锁定在当前位置，即位置环锁定状态
      */
     virtual void stop() = 0;
 
     /**
-     * 停止底盘
+     * 保持底盘
      *
-     * hold 状态为静止状态，此时应当为速度环锁定
+     * hold 状态应当是控制 motion 保持静止，即速度环锁定状态
      */
     virtual void hold() = 0;
 

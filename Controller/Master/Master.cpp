@@ -11,7 +11,7 @@ namespace chassis::controller
 Master::Master(motion::IChassisMotion& motion, loc::IChassisLoc& loc, const Config& cfg) :
     IChassisController(motion, loc), lock_(osMutexNew(nullptr)), limit_(cfg.limit),
     tracking_threshold_(cfg.tracking_threshold),
-    auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target),
+    auto_nearest_yaw_target_(cfg.auto_nearest_yaw_target), accel_Tff(cfg.accel_Tff),
     posture_trajectory_{ .pd    = { PD(cfg.posture_error_pd_cfg.vx),
                                     PD(cfg.posture_error_pd_cfg.vy),
                                     PD(cfg.posture_error_pd_cfg.wz) },
@@ -46,9 +46,9 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
         a = std::clamp(a, amin, amax);
     };
 
-    Velocity v{};
-    Posture  p{};
-    float    ax = 0, ay = 0, ayaw = 0;
+    Velocity     v{};
+    Posture      p{};
+    Acceleration a{};
 
     // 如果选择衔接当前状态 或 之前不是位置控制（没有曲线可以衔接）
     if (link_mode == TrajectoryLinkMode::CurrentState || ctrl_mode_ != CtrlMode::Posture)
@@ -70,18 +70,19 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
         v.vy = posture_trajectory_.curve.y.CalcV(posture_trajectory_.now);
         v.wz = posture_trajectory_.curve.yaw.CalcV(posture_trajectory_.now);
 
-        ax   = posture_trajectory_.curve.x.CalcA(posture_trajectory_.now);
-        ay   = posture_trajectory_.curve.y.CalcA(posture_trajectory_.now);
-        ayaw = posture_trajectory_.curve.yaw.CalcA(posture_trajectory_.now);
+        a.ax    = posture_trajectory_.curve.x.CalcA(posture_trajectory_.now);
+        a.ay    = posture_trajectory_.curve.y.CalcA(posture_trajectory_.now);
+        a.alpha = posture_trajectory_.curve.yaw.CalcA(posture_trajectory_.now);
     }
-    auto [x, y, yaw]  = p;
-    auto [vx, vy, wz] = v;
+    auto [x, y, yaw]     = p;
+    auto [vx, vy, wz]    = v;
+    auto [ax, ay, alpha] = a;
 
     // 初始化 S 型曲线
     // 此处需要保证不超过限制，避免产生规划失败的问题
     clamp_vel_acc(vx, ax, limit_x);
     clamp_vel_acc(vy, ay, limit_y);
-    clamp_vel_acc(wz, ayaw, limit_yaw);
+    clamp_vel_acc(wz, alpha, limit_yaw);
 
     Posture target = absolute_target;
     if (auto_nearest_yaw_target_)
@@ -89,8 +90,9 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
 
     const velocity_profile::SCurveProfile //
             curve_x(limit_x, x, vx, ax, target.x),
-            curve_y(limit_y, y, vy, ay, target.y), curve_yaw(limit_yaw, yaw, wz, ayaw, target.yaw);
+            curve_y(limit_y, y, vy, ay, target.y), curve_yaw(limit_yaw, yaw, wz, alpha, target.yaw);
 
+    // 错误日志记录
     if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
     {
         last_scurve_failure_       = {};
@@ -125,6 +127,10 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
     posture_trajectory_.curve.x   = curve_x;
     posture_trajectory_.curve.y   = curve_y;
     posture_trajectory_.curve.yaw = curve_yaw;
+
+    posture_trajectory_.p_ref_curr_ = p;
+    posture_trajectory_.v_ref_curr_ = v;
+    posture_trajectory_.a_ref_curr_ = a;
 
     ctrl_mode_ = CtrlMode::Posture;
 
@@ -274,13 +280,40 @@ void Master::stop()
     osMutexAcquire(lock_, osWaitForever);
     const uint32_t saved = isr_lock();
 
-    // stop 并不是简单清零速度，而是把当前位置记为新的锁定参考点。
-    ctrl_mode_ = CtrlMode::Stopped;
-
-    posture_trajectory_.p_ref_curr_ = postureInWorld();
-    posture_trajectory_.v_ref_curr_ = { 0, 0, 0 };
+    stop_locked(postureInWorld());
 
     isr_unlock(saved);
+    osMutexRelease(lock_);
+}
+void Master::stop_locked(const Posture& current_pose)
+{
+    // stop 并不是简单清零速度，而是把当前位置记为新的锁定参考点。
+    ctrl_mode_                      = CtrlMode::Stopped;
+    posture_trajectory_.p_ref_curr_ = current_pose;
+    posture_trajectory_.v_ref_curr_ = {};
+    posture_trajectory_.a_ref_curr_ = {};
+}
+void Master::switchLoc(loc::IChassisLoc& new_loc)
+{
+    osMutexAcquire(lock_, osWaitForever);
+
+    const Posture old_pose = postureInWorld();
+
+    if (ctrl_mode_ != CtrlMode::Stopped)
+    {
+        ISRGuard guard{};
+        stop_locked(old_pose);
+    }
+
+    const auto p_ref_b =
+            loc::IChassisLoc::WorldPosture2RelativePosture(old_pose,
+                                                           posture_trajectory_.p_ref_curr_);
+    const auto v_ref_b = loc::IChassisLoc::const Posture new_pose = new_loc.postureInWorld();
+
+    auto pref = loc::IChassisLoc::RelativePosture2WorldPosture(new_pose, ref_b);
+
+    loc_ = &new_loc;
+
     osMutexRelease(lock_);
 }
 void Master::hold()
@@ -302,25 +335,33 @@ void Master::profileUpdate(const float dt)
                                               .vy = posture_trajectory_.curve.y.CalcV(now),
                                               .wz = posture_trajectory_.curve.yaw.CalcV(now) };
 
+    // 加速度与速度使用同一曲线时刻；系数在车体系中应用。
+    this->posture_trajectory_.a_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcA(now),
+                                              .y   = posture_trajectory_.curve.y.CalcA(now),
+                                              .yaw = posture_trajectory_.curve.yaw.CalcA(now) };
+
     // 计算当前目标
     this->posture_trajectory_.p_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcX(now),
                                               .y   = posture_trajectory_.curve.y.CalcX(now),
                                               .yaw = posture_trajectory_.curve.yaw.CalcX(now) };
 
-    apply_position_velocity();
+    apply_position_velocity(postureInWorld());
 }
 void Master::errorUpdate()
 {
     if (!this->enabled() || !(ctrl_mode_ == CtrlMode::Posture || ctrl_mode_ == CtrlMode::Stopped))
         return;
 
-    const auto [x, y, yaw] = postureInWorld();
+    const Posture current_pose = postureInWorld();
+    const Posture ref_b =
+            loc::IChassisLoc::WorldPosture2RelativePosture(current_pose,
+                                                           posture_trajectory_.p_ref_curr_);
 
-    // 使用 pd 控制器跟随当前目标
-    posture_trajectory_.pd.vx.calc(posture_trajectory_.p_ref_curr_.x, x);
-    posture_trajectory_.pd.vy.calc(posture_trajectory_.p_ref_curr_.y, y);
-    posture_trajectory_.pd.wz.calc(posture_trajectory_.p_ref_curr_.yaw, yaw);
-    apply_position_velocity();
+    // 车体系相对目标对零反馈闭环；连续 yaw 差值不折返为最短角。
+    posture_trajectory_.pd.vx.calc(ref_b.x, 0.0f);
+    posture_trajectory_.pd.vy.calc(ref_b.y, 0.0f);
+    posture_trajectory_.pd.wz.calc(ref_b.yaw, 0.0f);
+    apply_position_velocity(current_pose);
 }
 void Master::controllerUpdate()
 {
@@ -360,19 +401,22 @@ void Master::update_velocity_control()
     }
     applyVelocity(velocity_ref_.in_body);
 }
-void Master::apply_position_velocity()
+void Master::apply_position_velocity(const Posture& current_pose)
 {
-    // 叠加前馈和 pd 输出，先在世界系下得到期望速度，再统一换算到底盘车体系。
-    const Velocity velocity_in_world = {
-        posture_trajectory_.v_ref_curr_.vx + posture_trajectory_.pd.vx.getOutput(),
-        posture_trajectory_.v_ref_curr_.vy + posture_trajectory_.pd.vy.getOutput(),
-        posture_trajectory_.v_ref_curr_.wz + posture_trajectory_.pd.wz.getOutput(),
+    const float sin_yaw = std::sin(DEG2RAD(-current_pose.yaw));
+    const float cos_yaw = std::cos(DEG2RAD(-current_pose.yaw));
+    const auto& v       = posture_trajectory_.v_ref_curr_;
+    const auto& a       = posture_trajectory_.a_ref_curr_;
+
+    // 先把世界系 v/a 旋转到车体系，再分别叠加车体轴 PD 和 T * a_b。
+    const Velocity body_velocity = {
+        .vx = v.vx * cos_yaw - v.vy * sin_yaw + posture_trajectory_.pd.vx.getOutput() +
+              accel_Tff.x * (a.x * cos_yaw - a.y * sin_yaw),
+        .vy = v.vx * sin_yaw + v.vy * cos_yaw + posture_trajectory_.pd.vy.getOutput() +
+              accel_Tff.y * (a.x * sin_yaw + a.y * cos_yaw),
+        .wz = v.wz + posture_trajectory_.pd.wz.getOutput() + accel_Tff.yaw * a.yaw,
     };
 
-    // 将世界坐标系速度转换为底盘坐标系速度
-    const Velocity body_velocity = loc_->WorldVelocity2BodyVelocity(velocity_in_world);
-
-    // 应用速度
     applyVelocity(body_velocity);
 }
 } // namespace chassis::controller

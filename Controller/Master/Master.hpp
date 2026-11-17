@@ -62,14 +62,22 @@ public:
         float yaw{ 0.5f }; ///< yaw 方向允许误差 (unit: deg)
     };
 
-    /// 控制器配置：误差 PD 参数 + 轨迹曲线限制 + 完成判定阈值。
+    /// 车体各轴加速度前馈时间系数：T * a_b，输出单位为 m/s、deg/s。
+    struct AccelerationFeedforward
+    {
+        float x{ 0.0f };   ///< 车体 x 轴系数 (unit: s)，默认关闭
+        float y{ 0.0f };   ///< 车体 y 轴系数 (unit: s)，默认关闭
+        float yaw{ 0.0f }; ///< yaw 轴系数 (unit: s)，默认关闭
+    };
+
+    /// 控制器配置：车体系误差 PD、轨迹限制、完成阈值及加速度前馈。
     struct Config
     {
         struct
         {
-            PD::Config vx; ///< x 速度 PD 控制器
-            PD::Config vy; ///< y 速度 PD 控制器
-            PD::Config wz; ///< 角速度 PD 控制器
+            PD::Config vx; ///< 车体 x 相对位姿 PD，反馈恒为 0
+            PD::Config vy; ///< 车体 y 相对位姿 PD，反馈恒为 0
+            PD::Config wz; ///< 连续 yaw 相对位姿 PD，反馈恒为 0（不折返最短角）
         } posture_error_pd_cfg;
 
         TrajectoryLimit limit{};
@@ -78,6 +86,9 @@ public:
 
         /// 设置位姿目标时，是否把目标 yaw 转换为相对本次规划起点最近的等效连续角。
         bool auto_nearest_yaw_target{ true };
+
+        /// 世界系轨迹加速度旋转到车体系后，分别乘各车体轴的 T；速度保持模式不使用。
+        AccelerationFeedforward accel_Tff{};
     };
 
     enum class CtrlMode
@@ -221,6 +232,16 @@ public:
     void stop() override;
 
     /**
+     * 切换定位来源，只在 Stopped 状态实际切换。
+     *
+     * 若处于 Velocity / Posture，先按 stop() 语义锁定旧定位的当前位姿并清零速度、
+     * 加速度参考。已 Stopped 时保留已有锁定误差，不重新 stop。
+     * 切换时重映射世界系锁定目标，使车体系相对目标 ref_b 瞬时不变；PD 历史不重置。
+     * @param new_loc 新定位源，其生命周期必须覆盖后续使用期
+     */
+    void switchLoc(loc::IChassisLoc& new_loc);
+
+    /**
      * 设置底盘速度为 0
      */
     void hold() override;
@@ -253,6 +274,8 @@ private:
 
     bool auto_nearest_yaw_target_{ true }; ///< 设置目标时是否自动选择最近等效 yaw
 
+    AccelerationFeedforward accel_Tff; ///< 车体各轴加速度前馈时间系数
+
     SCurveFailureRecord last_scurve_failure_{};
 
     struct
@@ -281,16 +304,20 @@ private:
             velocity_profile::SCurveProfile yaw;
         } curve;
 
-        Posture  p_ref_curr_{}; ///< 当前时刻的位姿参考点
-        Velocity v_ref_curr_{}; ///< 当前时刻的前馈速度参考
+        Posture      p_ref_curr_{}; ///< 当前时刻的世界系位姿参考点
+        Velocity     v_ref_curr_{}; ///< 当前时刻的世界系前馈速度参考
+        Acceleration a_ref_curr_{}; ///< 当前时刻的世界系加速度前馈参考
     } posture_trajectory_;
 
 private:
     [[nodiscard]] static float nearestEquivalentYaw(float reference_yaw, float target_yaw);
 
+    /// 调用者必须已持有 mutex 和中断锁；不重置 PD 历史。
+    void stop_locked(const Posture& current_pose);
+
     void update_velocity_control();
 
-    void apply_position_velocity();
+    void apply_position_velocity(const Posture& current_pose);
 };
 
 } // namespace chassis::controller
