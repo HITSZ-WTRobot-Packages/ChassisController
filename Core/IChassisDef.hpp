@@ -70,11 +70,4 @@ struct Acceleration
 
     static constexpr Acceleration zero() { return { 0, 0, 0 }; }
 };
-
-struct Reference
-{
-    Posture      posture;
-    Velocity     velocity;
-    Acceleration acceleration;
-};
 } // namespace chassis

@@ -78,16 +78,12 @@ Posture IChassisLoc::CurrentPostureRelativeTo(const Posture& base_in_world) cons
     return WorldPosture2RelativePosture(base_in_world, postureInWorld());
 }
 
-Reference IChassisLoc::ReferenceInBody(const Reference& reference_in_world) const
+std::pair<Velocity, Acceleration> IChassisLoc::VelocityAndAccelerationInBody(
+        const Velocity& v_in_w, const Acceleration& a_in_w) const
 {
-    // 三件套共用同一份位姿快照：整段只有这一次虚调。
     const Posture base = postureInWorld();
-
-    return {
-        .posture      = WorldPosture2RelativePosture(base, reference_in_world.posture),
-        .velocity     = rotateVelocity(reference_in_world.velocity, -base.yaw),
-        .acceleration = rotateAcceleration(reference_in_world.acceleration, -base.yaw),
-    };
+    return std::make_pair<Velocity, Acceleration>(rotateVelocity(v_in_w, -base.yaw),
+                                                  rotateAcceleration(a_in_w, -base.yaw));
 }
 
 Velocity IChassisLoc::rotateVelocity(const Velocity& inp, const float theta)

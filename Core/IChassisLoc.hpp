@@ -81,7 +81,8 @@ public:
     /// 便捷函数：计算“当前位置相对于某个世界系基准位姿”的相对位姿。
     [[nodiscard]] Posture CurrentPostureRelativeTo(const Posture& base_in_world) const;
 
-    [[nodiscard]] Reference ReferenceInBody(const Reference& reference_in_world) const;
+    std::pair<Velocity, Acceleration> VelocityAndAccelerationInBody(
+            const Velocity& v_in_w, const Acceleration& a_in_w) const;
 
 protected:
     motion::IChassisMotion* motion_{ nullptr }; ///< Loc 读取速度反馈所依赖的 Motion
