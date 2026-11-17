@@ -19,14 +19,14 @@ void JustEncoder::update(const float dt)
     // 线速度使用梯形积分，减少纯欧拉积分在低频更新下的误差。
     const float dx = 0.5f * (vx + velocity_.in_body.vx) * dt;
     const float dy = 0.5f * (vy + velocity_.in_body.vy) * dt;
-    // 计算平均 yaw，作为积分方向
+    // 平均朝向使用本次积分得到的连续角，不能先折返，否则跨越 ±180deg 时方向会错误。
     const float& yaw_prev    = posture_.in_world.yaw;
     const float  yaw         = yaw_prev + 0.5f * (wz + velocity_.in_body.wz) * dt; // 用平均速度积分
     const float  ave_yaw_rad = DEG2RAD((yaw + yaw_prev) * 0.5f);
     // 先在车体系下积分出位移，再按平均朝向旋转到世界系。
     posture_.in_world.x += dx * cosf(ave_yaw_rad) - dy * sinf(ave_yaw_rad);
     posture_.in_world.y += dx * sinf(ave_yaw_rad) + dy * cosf(ave_yaw_rad);
-    posture_.in_world.yaw = yaw;
+    posture_.in_world.yaw = Posture::smallestAngle(yaw);
     // 更新速度反馈
     velocity_.in_body  = velocity;
     velocity_.in_world = BodyVelocity2WorldVelocity(velocity);

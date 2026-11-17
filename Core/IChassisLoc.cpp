@@ -52,9 +52,9 @@ Posture IChassisLoc::RelativePosture2WorldPosture(const Posture& base_in_world,
     const float cos_yaw = cosf(DEG2RAD(base_in_world.yaw));
 
     return {
-        .x   = posture_in_base.x * cos_yaw - posture_in_base.y * sin_yaw + base_in_world.x,
-        .y   = posture_in_base.x * sin_yaw + posture_in_base.y * cos_yaw + base_in_world.y,
-        .yaw = posture_in_base.yaw + base_in_world.yaw,
+        posture_in_base.x * cos_yaw - posture_in_base.y * sin_yaw + base_in_world.x,
+        posture_in_base.x * sin_yaw + posture_in_base.y * cos_yaw + base_in_world.y,
+        posture_in_base.yaw + base_in_world.yaw,
     };
 }
 Posture IChassisLoc::WorldPosture2RelativePosture(const Posture& base_in_world,
@@ -67,9 +67,9 @@ Posture IChassisLoc::WorldPosture2RelativePosture(const Posture& base_in_world,
     const float ty = posture_in_world.y - base_in_world.y;
 
     return {
-        .x   = tx * cos_yaw - ty * sin_yaw,
-        .y   = tx * sin_yaw + ty * cos_yaw,
-        .yaw = posture_in_world.yaw - base_in_world.yaw,
+        tx * cos_yaw - ty * sin_yaw,
+        tx * sin_yaw + ty * cos_yaw,
+        posture_in_world.yaw - base_in_world.yaw,
     };
 }
 

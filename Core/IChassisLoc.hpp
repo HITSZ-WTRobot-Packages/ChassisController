@@ -47,7 +47,7 @@ public:
     /// 返回世界坐标系速度。
     [[nodiscard]] virtual Velocity velocityInWorld() const = 0;
 
-    /// 返回世界坐标系位姿。
+    /// 返回世界坐标系位姿，yaw 为 [-180, 180] deg。
     [[nodiscard]] virtual Posture postureInWorld() const = 0;
 
     /// 使用当前朝向，把世界系速度转换为车体系速度。
@@ -64,24 +64,24 @@ public:
     [[nodiscard]] Acceleration BodyAcceleration2WorldAcceleration(
             const Acceleration& acceleration_in_body) const;
 
-    /// 把世界系位姿换算成“以当前车体为参考”的相对位姿。
+    /// 把世界系位姿换算成“以当前车体为参考”的相对位姿，yaw 为劣弧有向角差。
     [[nodiscard]] Posture WorldPosture2BodyPosture(const Posture& posture_in_world) const;
 
-    /// 把“相对当前车体”的位姿换算回世界系。
+    /// 把“相对当前车体”的位姿换算回世界系，yaw 归一化至 [-180, 180] deg。
     [[nodiscard]] Posture BodyPosture2WorldPosture(const Posture& posture_in_body) const;
 
-    /// 已知某个基准位姿在世界系中的位置，把“相对基准”的位姿展开到世界系。
+    /// 已知世界系基准，把相对位姿展开到世界系，yaw 归一化至 [-180, 180] deg。
     [[nodiscard]] static Posture RelativePosture2WorldPosture(const Posture& base_in_world,
                                                               const Posture& posture_in_base);
 
-    /// 已知某个基准位姿在世界系中的位置，把世界系位姿改写成“相对基准”的位姿。
+    /// 已知世界系基准，计算相对位姿，yaw 为世界系朝向减基准朝向的劣弧有向角差。
     [[nodiscard]] static Posture WorldPosture2RelativePosture(const Posture& base_in_world,
                                                               const Posture& posture_in_world);
 
     /// 便捷函数：计算“当前位置相对于某个世界系基准位姿”的相对位姿。
     [[nodiscard]] Posture CurrentPostureRelativeTo(const Posture& base_in_world) const;
 
-    std::pair<Velocity, Acceleration> VelocityAndAccelerationInBody(
+    [[nodiscard]] std::pair<Velocity, Acceleration> VelocityAndAccelerationInBody(
             const Velocity& v_in_w, const Acceleration& a_in_w) const;
 
 protected:

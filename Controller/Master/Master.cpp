@@ -49,6 +49,7 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
     Velocity     v{};
     Posture      p{};
     Acceleration a{};
+    float        yaw{}; // S 曲线内部可使用连续角，不写入 Posture。
 
     // 如果选择衔接当前状态 或 之前不是位置控制（没有曲线可以衔接）
     if (link_mode == TrajectoryLinkMode::CurrentState || ctrl_mode_ != CtrlMode::Posture)
@@ -57,6 +58,7 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
 
         // copy 当前位置和速度
         p = postureInWorld();
+        yaw = p.yaw;
         v = velocityInWorld();
     }
     else
@@ -64,7 +66,8 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
         // 否则衔接之前的曲线，用于可能的多段路径规划
         p.x   = posture_trajectory_.curve.x.CalcX(posture_trajectory_.now);
         p.y   = posture_trajectory_.curve.y.CalcX(posture_trajectory_.now);
-        p.yaw = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now);
+        yaw   = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now);
+        p.yaw = Posture::smallestAngle(yaw);
 
         v.vx = posture_trajectory_.curve.x.CalcV(posture_trajectory_.now);
         v.vy = posture_trajectory_.curve.y.CalcV(posture_trajectory_.now);
@@ -74,7 +77,6 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
         a.ay    = posture_trajectory_.curve.y.CalcA(posture_trajectory_.now);
         a.alpha = posture_trajectory_.curve.yaw.CalcA(posture_trajectory_.now);
     }
-    auto [x, y, yaw]     = p;
     auto [vx, vy, wz]    = v;
     auto [ax, ay, alpha] = a;
 
@@ -84,13 +86,14 @@ bool Master::setTargetPostureInWorld(const Posture&           absolute_target,
     clamp_vel_acc(vy, ay, limit_y);
     clamp_vel_acc(wz, alpha, limit_yaw);
 
-    Posture target = absolute_target;
-    if (auto_nearest_yaw_target_)
-        target.yaw = nearestEquivalentYaw(yaw, absolute_target.yaw);
+    const float target_yaw = auto_nearest_yaw_target_
+                                     ? yaw + Posture::yawError(absolute_target.yaw, yaw)
+                                     : absolute_target.yaw;
 
     const velocity_profile::SCurveProfile //
-            curve_x(limit_x, x, vx, ax, target.x),
-            curve_y(limit_y, y, vy, ay, target.y), curve_yaw(limit_yaw, yaw, wz, alpha, target.yaw);
+            curve_x(limit_x, p.x, vx, ax, absolute_target.x),
+            curve_y(limit_y, p.y, vy, ay, absolute_target.y),
+            curve_yaw(limit_yaw, yaw, wz, alpha, target_yaw);
 
     // 错误日志记录
     if (!curve_x.success() || !curve_y.success() || !curve_yaw.success())
@@ -225,9 +228,9 @@ bool Master::isTrajectoryTrackingWithinThreshold() const
 
     const auto [x, y, yaw] = postureInWorld();
     const Posture target{
-        .x   = posture_trajectory_.curve.x.CalcX(posture_trajectory_.now),
-        .y   = posture_trajectory_.curve.y.CalcX(posture_trajectory_.now),
-        .yaw = posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now),
+        posture_trajectory_.curve.x.CalcX(posture_trajectory_.now),
+        posture_trajectory_.curve.y.CalcX(posture_trajectory_.now),
+        posture_trajectory_.curve.yaw.CalcX(posture_trajectory_.now),
     };
 
     return std::fabs(x - target.x) <= tracking_threshold_.x &&
@@ -347,9 +350,11 @@ void Master::profileUpdate(const float dt)
                                               .alpha = posture_trajectory_.curve.yaw.CalcA(now) };
 
     // 计算当前目标
-    this->posture_trajectory_.p_ref_curr_ = { .x   = posture_trajectory_.curve.x.CalcX(now),
-                                              .y   = posture_trajectory_.curve.y.CalcX(now),
-                                              .yaw = posture_trajectory_.curve.yaw.CalcX(now) };
+    this->posture_trajectory_.p_ref_curr_ = {
+        posture_trajectory_.curve.x.CalcX(now),
+        posture_trajectory_.curve.y.CalcX(now),
+        posture_trajectory_.curve.yaw.CalcX(now),
+    };
 
     apply_position_velocity();
 }
@@ -360,7 +365,7 @@ void Master::errorUpdate()
 
     const auto [x, y, yaw] = loc().WorldPosture2BodyPosture(posture_trajectory_.p_ref_curr_);
 
-    // 车体系相对目标对零反馈闭环；连续 yaw 差值不折返为最短角。
+    // 车体系相对目标对零反馈闭环；yaw 由坐标变换折返为最短角。
     posture_trajectory_.pd.vx.calc(x, 0.0f);
     posture_trajectory_.pd.vy.calc(y, 0.0f);
     posture_trajectory_.pd.wz.calc(yaw, 0.0f);
@@ -374,11 +379,6 @@ void Master::controllerUpdate()
     // 只有纯速度模式需要这里持续下发；位姿模式在 profile/error update 中已完成下发。
     if (ctrl_mode_ == CtrlMode::Velocity)
         update_velocity_control();
-}
-float Master::nearestEquivalentYaw(const float reference_yaw, const float target_yaw)
-{
-    const float turns = (reference_yaw - target_yaw) / 360.0f;
-    return target_yaw + std::round(turns) * 360.0f;
 }
 void Master::update_velocity_control()
 {

@@ -77,15 +77,12 @@ public:
         {
             PD::Config vx; ///< 车体 x 相对位姿 PD，反馈恒为 0
             PD::Config vy; ///< 车体 y 相对位姿 PD，反馈恒为 0
-            PD::Config wz; ///< 连续 yaw 相对位姿 PD，反馈恒为 0（不折返最短角）
+            PD::Config wz; ///< 最短角 yaw 相对位姿 PD，反馈恒为 0
         } posture_error_pd_cfg;
 
         TrajectoryLimit limit{};
 
         TrajectoryTrackingThreshold tracking_threshold{};
-
-        /// 设置位姿目标时，是否把目标 yaw 转换为相对本次规划起点最近的等效连续角。
-        bool auto_nearest_yaw_target{ true };
 
         /// 世界系轨迹加速度旋转到车体系后，分别乘各车体轴的 T；速度保持模式不使用。
         AccelerationFeedforward accel_Tff{};
@@ -310,8 +307,6 @@ private:
     } posture_trajectory_;
 
 private:
-    [[nodiscard]] static float nearestEquivalentYaw(float reference_yaw, float target_yaw);
-
     /// 调用者必须已持有 mutex 和中断锁；不重置 PD 历史。
     void stop_locked(const Posture& current_pose);
 
